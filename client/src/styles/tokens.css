@@ -1,0 +1,120 @@
+/* Hoppers semantic token system: metallic Luna shell */
+:root {
+  /* ----------------------------
+     Color tokens
+     ---------------------------- */
+
+  /* Shell surfaces: app-level chrome and stage */
+  --color-shell-canvas: #0f1017;
+  --color-shell-elevated: #1b1d29;
+  --color-shell-overlay: #1a1925cc;
+  --color-shell-border: #9fa4b8;
+  --color-shell-border-strong: #c8cede;
+  --color-shell-highlight: #eceffa;
+  --color-shell-shadow: #0a0b10;
+
+  /* Pane surfaces: panels, controls, and input wells */
+  --color-pane-base: #d8dbe5;
+  --color-pane-raised: #e7eaf3;
+  --color-pane-muted: #c6cad6;
+  --color-pane-pressed: #b8bcc9;
+  --color-pane-border: #9ea4b5;
+  --color-pane-divider: #aeb4c5;
+  --color-pane-fill-soft: #f2f4fa;
+
+  /* Text: semantic contrast steps */
+  --color-text-primary: #11131b;
+  --color-text-secondary: #2a2f3e;
+  --color-text-muted: #4c5265;
+  --color-text-inverse: #f4f6fc;
+  --color-text-disabled: #7a8093;
+  --color-text-link: #5d6380;
+
+  /* State feedback: interactive and status semantics */
+  --color-state-focus-ring: #b2a3ff;
+  --color-state-info: #8aa0ff;
+  --color-state-success: #73ae8c;
+  --color-state-warning: #d4aa5f;
+  --color-state-danger: #c77585;
+  --color-state-disabled-bg: #c8ccd8;
+  --color-state-disabled-fg: #7a8093;
+
+  /* Accent: Luna lilac identity and tints */
+  --color-accent-primary: #9d8cff;
+  --color-accent-strong: #7f70dc;
+  --color-accent-soft: #c8c0ff;
+  --color-accent-faint: #e9e6ff;
+  --color-accent-on: #171228;
+
+  /* ----------------------------
+     Shadow tokens
+     ---------------------------- */
+
+  /* Frame depth for windows and shell containers */
+  --shadow-frame-rest: 0 1px 0 #f7f9ff inset, 0 -1px 0 #9ca1b2 inset, 0 10px 28px #0a0b1026;
+  --shadow-frame-hover: 0 1px 0 #ffffff inset, 0 -1px 0 #a7adbf inset, 0 14px 36px #0a0b1033;
+  --shadow-frame-active: 0 1px 0 #edf1ff inset, 0 -1px 0 #8f95a8 inset, 0 8px 20px #0a0b102e;
+
+  /* Bevel treatment for controls and trim */
+  --shadow-bevel-raised: 0 1px 0 #ffffff inset, 0 -1px 0 #9ca1b2 inset;
+  --shadow-bevel-soft: 0 1px 0 #f4f6fc inset, 0 -1px 0 #a7adbf inset;
+  --shadow-bevel-pressed: 0 2px 4px #0a0b1026 inset, 0 1px 0 #848ba0 inset;
+
+  /* Halo glow for focus and accent emphasis */
+  --shadow-halo-focus: 0 0 0 2px #e8e3ff, 0 0 0 4px #b2a3ff;
+  --shadow-halo-accent: 0 0 0 2px #e8e3ff, 0 0 20px #9d8cff66;
+  --shadow-halo-danger: 0 0 0 2px #f5e7eb, 0 0 0 4px #c77585;
+
+  /* Inset depth for wells and embedded content */
+  --shadow-inset-well: 0 2px 3px #0a0b101a inset, 0 1px 0 #ffffff80;
+  --shadow-inset-field: 0 1px 2px #0a0b101f inset, 0 1px 0 #f4f6fc;
+  --shadow-inset-panel: 0 2px 6px #0a0b1024 inset, 0 1px 0 #ffffff66;
+
+  /* ----------------------------
+     Radius tokens
+     ---------------------------- */
+  --radius-frame: 14px;
+  --radius-control: 10px;
+  --radius-input: 8px;
+
+  /* ----------------------------
+     Spacing scale
+     ---------------------------- */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ----------------------------
+     Z-index scale
+     ---------------------------- */
+  --z-base: 0;
+  --z-content: 10;
+  --z-chrome: 20;
+  --z-overlay: 40;
+  --z-popover: 60;
+  --z-modal: 80;
+  --z-toast: 100;
+  --z-system: 999;
+
+  /* ----------------------------
+     Motion timing and easing
+     ---------------------------- */
+  --motion-duration-instant: 80ms;
+  --motion-duration-fast: 140ms;
+  --motion-duration-normal: 220ms;
+  --motion-duration-slow: 320ms;
+  --motion-duration-emphasis: 460ms;
+
+  --motion-ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --motion-ease-emphasized: cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  --motion-ease-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --motion-ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
+}
