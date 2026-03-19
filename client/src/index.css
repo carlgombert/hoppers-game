@@ -7,6 +7,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import './styles/motion.css';
+
 :root {
   /* Panel chrome */
   --xp-titlebar-dark:  #1a3a78;
