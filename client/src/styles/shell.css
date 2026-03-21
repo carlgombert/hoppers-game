@@ -20,6 +20,8 @@
   --xp-text-on-light: #2a2b39;
 }
 
+/* ── L0 + L1: Wallpaper + atmosphere ─────────────────────── */
+
 .xp-app-layout {
   position: relative;
   isolation: isolate;
@@ -29,13 +31,40 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
+
+  /* Multi-pass background with frosted wave forms */
   background:
-    radial-gradient(76% 84% at -6% 100%, rgba(188, 196, 224, 0.28) 0%, rgba(188, 196, 224, 0) 74%),
-    radial-gradient(58% 70% at 108% -12%, rgba(168, 178, 206, 0.24) 0%, rgba(168, 178, 206, 0) 70%),
+    /* Frosted bubble form — top-right */
+    radial-gradient(
+      42% 48% at 82% 18%,
+      rgba(168, 155, 210, 0.18) 0%,
+      rgba(168, 155, 210, 0.06) 44%,
+      rgba(168, 155, 210, 0) 100%
+    ),
+    /* Frosted bubble form — bottom-left */
+    radial-gradient(
+      38% 44% at 12% 78%,
+      rgba(143, 125, 184, 0.16) 0%,
+      rgba(143, 125, 184, 0.04) 48%,
+      rgba(143, 125, 184, 0) 100%
+    ),
+    /* Silver highlight wash — top */
+    radial-gradient(
+      76% 84% at -6% 100%,
+      rgba(188, 196, 224, 0.28) 0%,
+      rgba(188, 196, 224, 0) 74%
+    ),
+    /* Cool highlight — top-right */
+    radial-gradient(
+      58% 70% at 108% -12%,
+      rgba(168, 178, 206, 0.24) 0%,
+      rgba(168, 178, 206, 0) 70%
+    ),
+    /* Base metallic field */
     linear-gradient(155deg, #455067 0%, #5c647f 42%, #6a7190 100%);
 }
 
-/* L1 atmosphere: textured non-cosmic shell wash. */
+/* L1 atmosphere: textured non-cosmic shell wash with frosted waves. */
 .xp-app-layout::before {
   content: '';
   position: absolute;
@@ -43,8 +72,45 @@
   z-index: 1;
   pointer-events: none;
   background:
-    radial-gradient(64% 64% at 22% 24%, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0) 72%),
-    radial-gradient(66% 62% at 78% 78%, rgba(143, 125, 184, 0.14) 0%, rgba(143, 125, 184, 0) 72%),
+    /* Abstract frosted wave — sweeping from left */
+    radial-gradient(
+      ellipse 120% 36% at 8% 56%,
+      rgba(198, 200, 216, 0.16) 0%,
+      rgba(198, 200, 216, 0.04) 60%,
+      transparent 100%
+    ),
+    /* Abstract frosted wave — sweeping from right */
+    radial-gradient(
+      ellipse 90% 28% at 88% 32%,
+      rgba(185, 173, 214, 0.13) 0%,
+      rgba(185, 173, 214, 0.03) 56%,
+      transparent 100%
+    ),
+    /* Soft geometric bubble — center-low */
+    radial-gradient(
+      circle 220px at 52% 72%,
+      rgba(216, 218, 232, 0.12) 0%,
+      rgba(216, 218, 232, 0) 100%
+    ),
+    /* Soft geometric bubble — upper */
+    radial-gradient(
+      circle 160px at 68% 22%,
+      rgba(199, 190, 250, 0.08) 0%,
+      rgba(199, 190, 250, 0) 100%
+    ),
+    /* Ambient upper light */
+    radial-gradient(
+      64% 64% at 22% 24%,
+      rgba(255, 255, 255, 0.13) 0%,
+      rgba(255, 255, 255, 0) 72%
+    ),
+    /* Ambient orchid mood — lower */
+    radial-gradient(
+      66% 62% at 78% 78%,
+      rgba(143, 125, 184, 0.14) 0%,
+      rgba(143, 125, 184, 0) 72%
+    ),
+    /* Fine surface noise */
     repeating-linear-gradient(
       -24deg,
       rgba(255, 255, 255, 0.03) 0,
@@ -62,10 +128,19 @@
   inset: 0;
   z-index: 2;
   pointer-events: none;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 34%);
+  background:
+    /* Upper gloss sweep */
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 30%),
+    /* Subtle curved pane reflection at bottom */
+    radial-gradient(
+      ellipse 100% 14% at 50% 100%,
+      rgba(198, 200, 216, 0.1) 0%,
+      transparent 100%
+    );
 }
 
-/* L2 rail: distinct from stage with deep lateral cast and rim pair. */
+/* ── L2: Sidebar Rail ────────────────────────────────────── */
+
 .xp-sidebar-nav {
   position: relative;
   z-index: 20;
@@ -89,11 +164,13 @@
     14px 0 30px rgba(0, 0, 0, 0.38);
 }
 
+/* Fine horizontal banding texture on rail */
 .xp-sidebar-nav::before {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: 0;
   background:
     linear-gradient(to right, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 28%),
     repeating-linear-gradient(
@@ -105,6 +182,7 @@
     );
 }
 
+/* Sidebar top gloss sheen band */
 .xp-sidebar-gloss {
   position: absolute;
   left: 0;
@@ -112,6 +190,7 @@
   top: 0;
   height: 106px;
   pointer-events: none;
+  z-index: 1;
   background:
     linear-gradient(
       to bottom,
@@ -123,7 +202,8 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
 
-/* L3 stage rail gap and framing lane before panel chrome begins. */
+/* ── L3: Main Stage ──────────────────────────────────────── */
+
 .xp-main-stage {
   position: relative;
   z-index: 30;
@@ -141,6 +221,7 @@
     );
 }
 
+/* Stage outer glow frame */
 .xp-main-stage::before {
   content: '';
   position: absolute;
@@ -155,7 +236,8 @@
   background: linear-gradient(180deg, rgba(103, 113, 141, 0.26), rgba(87, 97, 124, 0.16));
 }
 
-/* L4 frame: outer edge + inner edge + cast stack. */
+/* ── L4: Panel Chrome Frame ──────────────────────────────── */
+
 .xp-panel-chrome {
   position: relative;
   z-index: 40;
@@ -174,6 +256,7 @@
     0 12px 34px rgba(0, 0, 0, 0.48);
 }
 
+/* Inner inset rim */
 .xp-panel-chrome::before {
   content: '';
   position: absolute;
@@ -201,7 +284,8 @@
   pointer-events: none;
 }
 
-/* L5 titlebar: split phase metallic strip and gloss rail. */
+/* ── L5: Titlebar ────────────────────────────────────────── */
+
 .xp-titlebar {
   position: relative;
   z-index: 5;
@@ -211,17 +295,19 @@
   gap: 8px;
   padding: 0 12px;
   border-bottom: 1px solid rgba(20, 23, 33, 0.9);
+  /* Enhanced gradient with orchid lower phase */
   background:
     linear-gradient(
       180deg,
-      #8f97b2 0%,
-      #79819c 41%,
-      #5e667f 42%,
-      #484f65 100%
+      #9aa1bc 0%,
+      #838baa 38%,
+      #6b6492 40%,
+      #524d72 100%
     );
   color: var(--xp-text-on-dark);
 }
 
+/* Upper gloss band — brighter, covering 42% of titlebar */
 .xp-titlebar::before {
   content: '';
   position: absolute;
@@ -230,17 +316,27 @@
   top: 0;
   height: 42%;
   pointer-events: none;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0.08));
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0.1));
 }
 
+/* Lower orchid accent seam */
 .xp-titlebar::after {
   content: '';
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
+  height: 2px;
   pointer-events: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+  background:
+    linear-gradient(
+      to right,
+      rgba(143, 125, 184, 0.05),
+      rgba(143, 125, 184, 0.38) 30%,
+      rgba(143, 125, 184, 0.38) 70%,
+      rgba(143, 125, 184, 0.05)
+    );
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .xp-titlebar-icon,
@@ -260,7 +356,8 @@
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.58);
 }
 
-/* L4 content well with subtle texture pass for light panes. */
+/* ── L4 content well ─────────────────────────────────────── */
+
 .xp-panel-body {
   position: relative;
   z-index: 3;
@@ -274,6 +371,7 @@
     inset 0 10px 20px rgba(79, 84, 107, 0.12);
 }
 
+/* Fine texture on light pane body */
 .xp-panel-body::before {
   content: '';
   position: absolute;
@@ -309,44 +407,101 @@
     );
 }
 
-/* Preserve framed identity at narrower desktop widths. */
+/* ── Responsive ──────────────────────────────────────────── */
+
+/* Narrower desktop */
 @media (max-width: 980px) {
   .xp-app-layout {
-    grid-template-columns: clamp(240px, 28vw, 270px) minmax(0, 1fr);
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .xp-sidebar-nav {
+    flex-direction: row;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
     box-shadow:
-      inset 1px 0 0 rgba(255, 255, 255, 0.22),
-      inset -1px 0 0 rgba(0, 0, 0, 0.42),
-      10px 0 22px rgba(0, 0, 0, 0.34);
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.42),
+      0 8px 22px rgba(0, 0, 0, 0.34);
+    max-height: 64px;
+    overflow: hidden;
+  }
+
+  .xp-sidebar-gloss {
+    height: 100%;
+    border-bottom: none;
+  }
+
+  /* Hide verbose elements on mobile rail */
+  .xp-user-profile,
+  .xp-task-group,
+  .xp-sidebar-footer {
+    display: none;
+  }
+
+  .xp-nav-menu {
+    flex-direction: row;
+    padding: 8px;
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .xp-nav-menu .xp-pane-heading {
+    display: none;
+  }
+
+  .xp-nav-btn {
+    grid-template-columns: 20px auto;
+    padding: 8px 12px;
+    white-space: nowrap;
+    border-radius: 8px;
+    min-width: max-content;
+  }
+
+  .xp-nav-chevron-icon {
+    display: none;
   }
 
   .xp-main-stage {
-    padding: 16px 18px 18px;
-  }
-
-  .xp-main-stage::before {
-    inset: 8px 10px 10px;
-    border-radius: 13px;
-  }
-
-  .xp-panel-chrome {
-    margin-top: 14px;
-  }
-}
-
-@media (max-width: 640px) {
-  .xp-main-stage {
-    padding: 14px 16px 16px;
+    padding: 12px 14px 14px;
   }
 
   .xp-main-stage::before {
     inset: 6px 8px 8px;
+    border-radius: 12px;
   }
 
   .xp-panel-chrome {
-    margin-top: 12px;
+    margin-top: 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .xp-sidebar-nav {
+    max-height: 56px;
+  }
+
+  .xp-nav-btn {
+    grid-template-columns: 18px;
+    padding: 8px 10px;
+  }
+
+  .xp-nav-label {
+    display: none;
+  }
+
+  .xp-main-stage {
+    padding: 10px 10px 12px;
+  }
+
+  .xp-main-stage::before {
+    inset: 4px 6px 6px;
+  }
+
+  .xp-panel-chrome {
+    margin-top: 8px;
     border-radius: 10px;
   }
 

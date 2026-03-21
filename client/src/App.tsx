@@ -29,7 +29,7 @@ export default function App() {
       <nav className="xp-sidebar-nav" aria-label="Main Navigation">
         <div className="xp-sidebar-gloss" aria-hidden="true" />
 
-        {/* User Profile */}
+        {/* User Profile Band */}
         <div className="xp-user-profile">
           <div className="xp-user-avatar">
             <ChromeIcon variant="profile" className="xp-user-avatar-icon" />
@@ -70,8 +70,10 @@ export default function App() {
           </div>
         </div>
 
+        {/* Footer Strip — Split Bar Frame */}
         <div className="xp-sidebar-footer">
           <button type="button" className="xp-start-strip">All Programs</button>
+          <div className="xp-footer-divider" aria-hidden="true" />
           <button type="button" className="xp-orb-btn" aria-label="Quick launch">
             <ChromeIcon variant="orb" className="xp-orb-icon" />
           </button>
