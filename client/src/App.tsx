@@ -3,25 +3,36 @@ import ChromeIcon, { type ChromeIconVariant } from './components/ChromeIcon';
 import PanelChrome from './components/PanelChrome';
 import GameCanvas from './game/GameCanvas';
 
+type NavId = 'build' | 'levels' | 'party' | 'settings';
+type ViewId = NavId | 'game';
+
 interface NavItem {
-  id: string;
+  id: NavId;
   label: string;
   icon: ChromeIconVariant;
-  content: 'game' | 'editor' | 'levels' | 'party' | 'settings';
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { id: 'build',    label: 'Level Editor', icon: 'editor'   },
+  { id: 'levels',   label: 'My Levels',    icon: 'levels'   },
+  { id: 'party',    label: 'Party Lobby',  icon: 'party'    },
+  { id: 'settings', label: 'Settings',     icon: 'settings' },
+];
+
+function navForView(view: ViewId): NavItem {
+  if (view === 'game') return { id: 'levels', label: 'Playing Level', icon: 'game' };
+  return NAV_ITEMS.find((n) => n.id === view) ?? NAV_ITEMS[0];
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<NavItem['id']>('play');
+  const [view, setView] = useState<ViewId>('build');
 
-  const navItems: NavItem[] = [
-    { id: 'play', label: 'Play Game', icon: 'game', content: 'game' },
-    { id: 'build', label: 'Level Editor', icon: 'editor', content: 'editor' },
-    { id: 'levels', label: 'My Levels', icon: 'levels', content: 'levels' },
-    { id: 'party', label: 'Party Lobby', icon: 'party', content: 'party' },
-    { id: 'settings', label: 'Settings', icon: 'settings', content: 'settings' },
-  ];
+  const activeNavId: NavId = view === 'game' ? 'levels' : view;
+  const currentNav = navForView(view);
 
-  const currentNav = navItems.find((n) => n.id === activeTab) || navItems[0];
+  function launchGame() { setView('game'); }
+  function quitGame()   { setView('levels'); }
+  function goToEditor() { setView('build'); }
 
   return (
     <div className="xp-app-layout">
@@ -43,13 +54,13 @@ export default function App() {
         {/* Navigation Menu */}
         <div className="xp-nav-menu">
           <div className="xp-pane-heading">PROGRAMS</div>
-          {navItems.map((item) => (
+          {NAV_ITEMS.map((item) => (
             <button
               key={item.id}
               type="button"
-              className={`xp-nav-btn ${activeTab === item.id ? 'active' : ''}`}
-              aria-pressed={activeTab === item.id}
-              onClick={() => setActiveTab(item.id)}
+              className={`xp-nav-btn ${activeNavId === item.id ? 'active' : ''}`}
+              aria-pressed={activeNavId === item.id}
+              onClick={() => setView(item.id)}
             >
               <ChromeIcon variant={item.icon} className="xp-nav-icon" />
               <span className="xp-nav-label">{item.label}</span>
@@ -59,22 +70,28 @@ export default function App() {
 
           <div className="xp-task-group">
             <div className="xp-pane-heading">FILE AND FOLDER TASKS</div>
-            <button type="button" className="xp-task-chip">Create a new level</button>
+            <button type="button" className="xp-task-chip" onClick={goToEditor}>
+              Create a new level
+            </button>
             <button type="button" className="xp-task-chip">Share this level</button>
           </div>
 
           <div className="xp-task-group">
             <div className="xp-pane-heading">OTHER PLACES</div>
             <button type="button" className="xp-task-chip">Community Levels</button>
-            <button type="button" className="xp-task-chip">Party Browser</button>
+            <button type="button" className="xp-task-chip" onClick={() => setView('party')}>
+              Party Browser
+            </button>
           </div>
         </div>
 
         {/* Footer Strip — Split Bar Frame */}
         <div className="xp-sidebar-footer">
-          <button type="button" className="xp-start-strip">All Programs</button>
+          <button type="button" className="xp-start-strip" onClick={goToEditor}>
+            New Level
+          </button>
           <div className="xp-footer-divider" aria-hidden="true" />
-          <button type="button" className="xp-orb-btn" aria-label="Quick launch">
+          <button type="button" className="xp-orb-btn" aria-label="Quick launch" onClick={() => setView('levels')}>
             <ChromeIcon variant="orb" className="xp-orb-icon" />
           </button>
         </div>
@@ -82,24 +99,53 @@ export default function App() {
 
       {/* ── Main Stage ────────────────────────────────────────────── */}
       <main className="xp-main-stage">
-        {/* Active Content Panel */}
         <PanelChrome
           title={currentNav.label}
           icon={<ChromeIcon variant={currentNav.icon} size={18} />}
-          dark={currentNav.content === 'game'}
+          dark={view === 'game'}
           actionButton={
-            currentNav.content === 'game' ? (
-              <button type="button" className="xp-btn danger" onClick={() => console.log('Quit game clicked')}>
+            view === 'game' ? (
+              <button type="button" className="xp-btn danger" onClick={quitGame}>
                 Quit Level
               </button>
             ) : null
           }
         >
-          {currentNav.content === 'game' && <GameCanvas />}
-          {currentNav.content !== 'game' && (
+          {/* Game canvas — only accessible via "Play" on a level card */}
+          {view === 'game' && <GameCanvas />}
+
+          {/* Level Editor */}
+          {view === 'build' && (
             <div className="xp-placeholder">
-              <ChromeIcon variant={currentNav.icon} className="xp-placeholder-icon" />
-              <span>{currentNav.label} interface coming soon...</span>
+              <ChromeIcon variant="editor" className="xp-placeholder-icon" />
+              <span>Level Editor coming soon…</span>
+            </div>
+          )}
+
+          {/* My Levels — launch point for gameplay */}
+          {view === 'levels' && (
+            <div className="xp-placeholder">
+              <ChromeIcon variant="levels" className="xp-placeholder-icon" />
+              <span>My Levels coming soon…</span>
+              <button type="button" className="xp-btn" onClick={launchGame}>
+                ▶ Play Demo Level
+              </button>
+            </div>
+          )}
+
+          {/* Party Lobby */}
+          {view === 'party' && (
+            <div className="xp-placeholder">
+              <ChromeIcon variant="party" className="xp-placeholder-icon" />
+              <span>Party Lobby coming soon…</span>
+            </div>
+          )}
+
+          {/* Settings */}
+          {view === 'settings' && (
+            <div className="xp-placeholder">
+              <ChromeIcon variant="settings" className="xp-placeholder-icon" />
+              <span>Settings coming soon…</span>
             </div>
           )}
         </PanelChrome>
