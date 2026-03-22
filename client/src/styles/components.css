@@ -879,3 +879,282 @@ textarea {
     transform: none;
   }
 }
+
+/* ── Auth Screens ─────────────────────────────────────────── */
+
+/* Full-viewport backdrop — same atmosphere as the main app */
+.xp-auth-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 80);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Multi-pass background matching the app wallpaper */
+  background:
+    radial-gradient(42% 48% at 82% 18%, rgba(168,155,210,.18) 0%, rgba(168,155,210,.06) 44%, transparent 100%),
+    radial-gradient(38% 44% at 12% 78%, rgba(143,125,184,.16) 0%, rgba(143,125,184,.04) 48%, transparent 100%),
+    linear-gradient(155deg, #455067 0%, #5c647f 42%, #6a7190 100%);
+  padding: 24px;
+}
+
+/* Frosted atmosphere pass */
+.xp-auth-backdrop::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 120% 36% at 8% 56%, rgba(198,200,216,.16) 0%, rgba(198,200,216,.04) 60%, transparent 100%),
+    radial-gradient(ellipse 90% 28% at 88% 32%, rgba(185,173,214,.13) 0%, rgba(185,173,214,.03) 56%, transparent 100%),
+    linear-gradient(to bottom, rgba(255,255,255,.14), rgba(255,255,255,0) 30%);
+  mix-blend-mode: soft-light;
+}
+
+/* Auth dialog shell — constrained width, segmented chrome construction */
+.xp-auth-shell {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  /* Outer frame rim */
+  border: 2px solid var(--xp-shell-edge, #3a3b4a);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.42),
+    inset 0 -1px 0 rgba(0,0,0,.35),
+    0 20px 48px rgba(0,0,0,.64);
+}
+
+/* Override panel chrome radius inside the shell so edges align */
+.xp-auth-shell .xp-panel-chrome {
+  margin-top: 0;
+  border: none;
+  border-radius: 0;
+}
+
+/* ── Auth Branding Band ───────────────────────────────────── */
+
+.xp-auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px 13px;
+  /* Deep gunmetal shell header */
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.09) 0%, rgba(255,255,255,0) 100%),
+    linear-gradient(166deg, #1e2232 0%, #272e3f 50%, #1e2232 100%);
+  border-bottom: 1px solid rgba(143,125,184,.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.18),
+    inset 0 -1px 0 rgba(0,0,0,.38);
+}
+
+.xp-auth-brand-icon {
+  width: 26px;
+  height: 26px;
+  color: var(--xp-silver-glow, #d8dae8);
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.45));
+}
+
+.xp-auth-brand-name {
+  font-family: 'Franklin Gothic Medium', 'Impact', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--xp-text-on-dark, #f1f2f8);
+  text-shadow: 0 1px 0 rgba(0,0,0,.62);
+}
+
+/* ── Auth Form Body ──────────────────────────────────────── */
+
+.xp-auth-form-body {
+  padding: 22px 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.xp-auth-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+
+.xp-auth-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--color-text-secondary, #2a3346);
+  text-shadow: 0 1px 0 rgba(255,255,255,.56);
+}
+
+/* Auth inputs: full-width with inset bevel */
+.xp-auth-input {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: 1px solid #98a2b6;
+  background:
+    linear-gradient(to bottom, rgba(255,255,255,.9), rgba(255,255,255,0)),
+    linear-gradient(to bottom, #f5f8fd, #e5ebf6);
+  color: var(--color-text-primary, #101521);
+  font: inherit;
+  font-size: 12px;
+  box-shadow:
+    inset 0 2px 4px rgba(7,9,17,.12),
+    inset 0 1px 0 rgba(255,255,255,.82);
+  transition: border-color 120ms, box-shadow 120ms;
+}
+
+.xp-auth-input:hover {
+  border-color: #8792a7;
+}
+
+.xp-auth-input:focus {
+  outline: none;
+  border-color: rgba(151,136,242,.74);
+  box-shadow:
+    inset 0 2px 4px rgba(7,9,17,.1),
+    inset 0 1px 0 rgba(255,255,255,.88),
+    0 0 0 2px rgba(238,233,255,.95),
+    0 0 0 4px rgba(170,157,255,.84);
+}
+
+.xp-auth-input:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+  filter: saturate(.7);
+}
+
+.xp-auth-input::placeholder {
+  color: rgba(74,86,111,.72);
+}
+
+/* ── Auth Submit Button — Polished Capsule CTA ───────────── */
+
+.xp-auth-actions {
+  margin-top: 6px;
+}
+
+.xp-auth-submit {
+  width: 100%;
+  padding: 10px 20px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  /* Orchid-tinted medallion gradient */
+  background:
+    linear-gradient(to bottom, rgba(255,255,255,.88), rgba(255,255,255,0)),
+    linear-gradient(to bottom, #c5bef5 0%, #9788f2 44%, #7a6ad0 100%);
+  border: 1px solid #5e4fb8;
+  color: #130f26;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.96),
+    inset 0 -2px 0 rgba(60,46,130,.42),
+    0 2px 6px rgba(7,10,19,.32),
+    0 0 0 1px rgba(199,190,250,.28);
+  text-shadow: 0 1px 0 rgba(255,255,255,.42);
+}
+
+.xp-auth-submit::before {
+  background: linear-gradient(to bottom, rgba(255,255,255,.86), rgba(255,255,255,0));
+}
+
+.xp-auth-submit:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.99),
+    inset 0 -2px 0 rgba(60,46,130,.46),
+    0 4px 12px rgba(7,10,19,.34),
+    0 0 16px rgba(151,136,242,.28),
+    0 0 0 1px rgba(199,190,250,.38);
+}
+
+.xp-auth-submit:active {
+  transform: translateY(0);
+  box-shadow:
+    inset 0 2px 5px rgba(7,10,19,.22),
+    inset 0 1px 0 rgba(255,255,255,.72),
+    0 1px 1px rgba(7,10,19,.18);
+}
+
+.xp-auth-submit:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+  filter: saturate(.7);
+  transform: none;
+}
+
+/* ── Auth Seam Divider ───────────────────────────────────── */
+
+.xp-auth-divider {
+  height: 1px;
+  margin: 18px 0 16px;
+  background: linear-gradient(
+    to right,
+    rgba(143,125,184,.04),
+    rgba(143,125,184,.32) 28%,
+    rgba(143,125,184,.32) 72%,
+    rgba(143,125,184,.04)
+  );
+  box-shadow: 0 1px 0 rgba(255,255,255,.48);
+}
+
+/* ── Auth Screen Switch Row ──────────────────────────────── */
+
+.xp-auth-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.xp-auth-switch-label {
+  font-size: 11px;
+  color: var(--color-text-muted, #647089);
+  text-shadow: 0 1px 0 rgba(255,255,255,.56);
+}
+
+.xp-auth-switch-btn {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  font-size: 11px;
+}
+
+/* ── Auth Error Strip ────────────────────────────────────── */
+
+.xp-auth-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: 1px solid rgba(180,76,99,.56);
+  background:
+    linear-gradient(to bottom, rgba(255,255,255,.78), rgba(255,255,255,0)),
+    linear-gradient(to bottom, #fae9ec, #f3d1d7);
+  color: #5a1626;
+  font-size: 11px;
+  font-weight: 600;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.88),
+    inset 0 -1px 0 rgba(180,76,99,.2),
+    0 1px 2px rgba(7,10,19,.12);
+}
+
+.xp-auth-error-icon {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  color: #b8395a;
+  opacity: 0.82;
+}
