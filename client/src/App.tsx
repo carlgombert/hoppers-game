@@ -4,6 +4,7 @@ import PanelChrome from './components/PanelChrome';
 import GameCanvas from './game/GameCanvas';
 import LoginScreen from './components/auth/LoginScreen';
 import CreateAccountScreen from './components/auth/CreateAccountScreen';
+import { getAvatarSrc } from './components/auth/AvatarPicker';
 import { useAuth } from './auth/AuthContext';
 
 interface NavItem {
@@ -48,7 +49,15 @@ export default function App() {
         {/* User Profile Band */}
         <div className="xp-user-profile">
           <div className="xp-user-avatar">
-            <ChromeIcon variant="profile" className="xp-user-avatar-icon" />
+            {user.avatar_id ? (
+              <img
+                src={getAvatarSrc(user.avatar_id)}
+                alt={user.display_name}
+                className="xp-user-avatar-img"
+              />
+            ) : (
+              <ChromeIcon variant="profile" className="xp-user-avatar-icon" />
+            )}
           </div>
           <div className="xp-user-info">
             <span className="xp-user-name">{user.display_name}</span>

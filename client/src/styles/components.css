@@ -1158,3 +1158,110 @@ textarea {
   color: #b8395a;
   opacity: 0.82;
 }
+
+/* ── Avatar Picker Grid ──────────────────────────────────── */
+
+.xp-auth-section-heading {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--color-text-secondary, #2a3346);
+  text-shadow: 0 1px 0 rgba(255,255,255,.56);
+  margin-bottom: 10px;
+}
+
+.xp-avatar-picker {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+/* Each avatar option is a pressable medallion button */
+.xp-avatar-option {
+  appearance: none;
+  border: 2px solid rgba(152,162,182,.7);
+  border-radius: 50%;
+  padding: 0;
+  cursor: pointer;
+  background:
+    linear-gradient(to bottom, rgba(255,255,255,.22), rgba(255,255,255,0)),
+    linear-gradient(to bottom, #8d96b0, #5a6275);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.38),
+    inset 0 -1px 0 rgba(0,0,0,.26),
+    0 2px 5px rgba(7,10,19,.22);
+  overflow: hidden;
+  aspect-ratio: 1;
+  transition: border-color 110ms, box-shadow 110ms, transform 110ms;
+  position: relative;
+}
+
+.xp-avatar-option:hover {
+  border-color: rgba(170,157,255,.72);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.5),
+    inset 0 -1px 0 rgba(0,0,0,.24),
+    0 3px 8px rgba(7,10,19,.28),
+    0 0 0 2px rgba(199,190,250,.24);
+  transform: translateY(-1px);
+}
+
+.xp-avatar-option:active {
+  transform: translateY(0);
+  box-shadow:
+    inset 0 2px 4px rgba(7,10,19,.22),
+    0 1px 1px rgba(7,10,19,.14);
+}
+
+/* Selected state: orchid halo ring */
+.xp-avatar-option.selected {
+  border-color: rgba(151,136,242,.9);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.52),
+    inset 0 -1px 0 rgba(0,0,0,.28),
+    0 0 0 2px rgba(238,233,255,.9),
+    0 0 0 4px rgba(151,136,242,.72),
+    0 3px 10px rgba(7,10,19,.28);
+}
+
+/* Gloss crest on selected avatar */
+.xp-avatar-option.selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255,255,255,.28) 0%, rgba(255,255,255,0) 50%);
+}
+
+.xp-avatar-option:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.xp-avatar-option-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Wider auth shell for the registration form with avatar picker */
+.xp-auth-shell--wide {
+  max-width: 520px;
+}
+
+/* ── Sidebar avatar image (replaces icon when avatar_id is set) ── */
+
+.xp-user-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}

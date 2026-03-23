@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import ChromeIcon from '../ChromeIcon';
 import PanelChrome from '../PanelChrome';
+import AvatarPicker from './AvatarPicker';
 import { useAuth } from '../../auth/AuthContext';
 
 interface CreateAccountScreenProps {
@@ -13,12 +14,17 @@ export default function CreateAccountScreen({ onSwitchToLogin }: CreateAccountSc
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [avatarId, setAvatarId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
+    if (!avatarId) {
+      setError('Please choose an avatar before continuing');
+      return;
+    }
     if (password !== confirm) {
       setError('Passwords do not match');
       return;
@@ -29,7 +35,7 @@ export default function CreateAccountScreen({ onSwitchToLogin }: CreateAccountSc
     }
 
     try {
-      await register(email, password, displayName);
+      await register(email, password, displayName, avatarId);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     }
@@ -37,7 +43,7 @@ export default function CreateAccountScreen({ onSwitchToLogin }: CreateAccountSc
 
   return (
     <div className="xp-auth-backdrop">
-      <div className="xp-auth-shell">
+      <div className="xp-auth-shell xp-auth-shell--wide">
         {/* Branding band */}
         <div className="xp-auth-brand">
           <ChromeIcon variant="game" className="xp-auth-brand-icon" />
@@ -57,7 +63,15 @@ export default function CreateAccountScreen({ onSwitchToLogin }: CreateAccountSc
             )}
 
             <form onSubmit={handleSubmit} noValidate>
-              <div className="xp-auth-field-group">
+              {/* Avatar picker section */}
+              <div className="xp-auth-section-heading">Choose your avatar</div>
+              <AvatarPicker
+                selected={avatarId}
+                onChange={setAvatarId}
+                disabled={isLoading}
+              />
+
+              <div className="xp-auth-field-group" style={{ marginTop: '18px' }}>
                 <label htmlFor="reg-name" className="xp-auth-label">
                   Display name
                 </label>
@@ -157,3 +171,4 @@ export default function CreateAccountScreen({ onSwitchToLogin }: CreateAccountSc
     </div>
   );
 }
+

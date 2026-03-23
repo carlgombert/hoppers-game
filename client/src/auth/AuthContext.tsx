@@ -11,6 +11,7 @@ export interface AuthUser {
   id: string;
   email: string;
   display_name: string;
+  avatar_id: number | null;
 }
 
 interface AuthState {
@@ -21,8 +22,9 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, display_name: string) => Promise<void>;
+  register: (email: string, password: string, display_name: string, avatar_id?: number | null) => Promise<void>;
   logout: () => Promise<void>;
+  updateAvatar: (avatar_id: number) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -30,7 +32,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 const TOKEN_KEY = 'hoppers_token';
 const USER_KEY = 'hoppers_user';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 async function apiFetch(path: string, options?: RequestInit): Promise<Response> {
   return fetch(`${API_BASE}${path}`, {
@@ -84,12 +86,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const register = useCallback(async (email: string, password: string, display_name: string) => {
+  const register = useCallback(async (
+    email: string,
+    password: string,
+    display_name: string,
+    avatar_id?: number | null,
+  ) => {
     setState((s) => ({ ...s, isLoading: true }));
     try {
       const res = await apiFetch('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ email, password, display_name }),
+        body: JSON.stringify({ email, password, display_name, avatar_id: avatar_id ?? null }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -119,9 +126,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state]);
 
+  const updateAvatar = useCallback(async (avatar_id: number) => {
+    const { token } = state;
+    if (!token) throw new Error('Not authenticated');
+    const res = await apiFetch('/auth/me', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ avatar_id }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error((body as { error?: string }).error ?? 'Failed to update avatar');
+    }
+    const body = (await res.json()) as { user: AuthUser };
+    setState((s) => ({ ...s, user: body.user }));
+  }, [state]);
+
   const value = useMemo<AuthContextValue>(
-    () => ({ ...state, login, register, logout }),
-    [state, login, register, logout]
+    () => ({ ...state, login, register, logout, updateAvatar }),
+    [state, login, register, logout, updateAvatar]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -134,3 +160,4 @@ export function useAuth(): AuthContextValue {
   }
   return ctx;
 }
+
