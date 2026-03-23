@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
 import { db } from '../db/db';
 import { redis } from '../redis/redis';
 import { requireAuth, AuthRequest } from '../middleware/auth';
@@ -10,20 +11,38 @@ const JWT_SECRET = process.env.JWT_SECRET ?? 'hoppers_dev_secret';
 // Token TTL: 7 days
 const JWT_TTL = 60 * 60 * 24 * 7;
 
+// Rate limiter: max 10 auth attempts per 15 minutes per IP.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts, please try again later' },
+});
+
+/** Validates avatar_id. Returns the parsed integer or null, or throws a descriptive error string. */
+function parseAvatarId(value: unknown): number | null {
+  if (value == null) return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 12) {
+    throw new Error('avatar_id must be an integer between 1 and 12');
+  }
+  return parsed;
+}
+
 // POST /auth/register
-router.post('/register', async (req: Request, res: Response) => {
+router.post('/register', authLimiter, async (req: Request, res: Response) => {
   const { email, password, display_name, avatar_id } = req.body;
   if (!email || !password || !display_name) {
     res.status(400).json({ error: 'email, password, and display_name are required' });
     return;
   }
 
-  // Validate avatar_id when supplied
-  const parsedAvatarId = avatar_id != null ? Number(avatar_id) : null;
-  if (parsedAvatarId !== null && (
-    !Number.isInteger(parsedAvatarId) || parsedAvatarId < 1 || parsedAvatarId > 12
-  )) {
-    res.status(400).json({ error: 'avatar_id must be an integer between 1 and 12' });
+  let parsedAvatarId: number | null;
+  try {
+    parsedAvatarId = parseAvatarId(avatar_id);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
     return;
   }
 
@@ -54,7 +73,7 @@ router.post('/register', async (req: Request, res: Response) => {
 });
 
 // POST /auth/login
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', authLimiter, async (req: Request, res: Response) => {
   const { email, password } = req.body;
   if (!email || !password) {
     res.status(400).json({ error: 'email and password are required' });
@@ -102,14 +121,12 @@ router.post('/login', async (req: Request, res: Response) => {
 });
 
 // PATCH /auth/me — update avatar for the authenticated user
-router.patch('/me', requireAuth, async (req: AuthRequest, res: Response) => {
-  const { avatar_id } = req.body;
-
-  const parsedAvatarId = avatar_id != null ? Number(avatar_id) : null;
-  if (parsedAvatarId !== null && (
-    !Number.isInteger(parsedAvatarId) || parsedAvatarId < 1 || parsedAvatarId > 12
-  )) {
-    res.status(400).json({ error: 'avatar_id must be an integer between 1 and 12' });
+router.patch('/me', authLimiter, requireAuth, async (req: AuthRequest, res: Response) => {
+  let parsedAvatarId: number | null;
+  try {
+    parsedAvatarId = parseAvatarId(req.body.avatar_id);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
     return;
   }
 
@@ -146,4 +163,5 @@ router.post('/logout', requireAuth, async (req: AuthRequest, res: Response) => {
 });
 
 export default router;
+
 

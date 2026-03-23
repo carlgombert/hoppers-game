@@ -39,7 +39,11 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
           <div className="xp-auth-form-body">
             {error && (
               <div className="xp-auth-error" role="alert">
-                <ChromeIcon variant="settings" className="xp-auth-error-icon" />
+                <svg className="xp-auth-error-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M8 1.5L14.5 13H1.5L8 1.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+                  <path d="M8 6v3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  <circle cx="8" cy="11.5" r="0.75" fill="currentColor" />
+                </svg>
                 {error}
               </div>
             )}
