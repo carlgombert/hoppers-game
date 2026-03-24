@@ -1,13 +1,15 @@
 import { useEffect, useRef } from 'react';
 import * as Phaser from 'phaser';
 import { MainScene } from './scenes/MainScene';
+import { type Tile } from '../types/level';
 
 interface GameCanvasProps {
+  tileData?: Tile[];
   width?: number;
   height?: number;
 }
 
-export default function GameCanvas({ width = 800, height = 500 }: GameCanvasProps) {
+export default function GameCanvas({ tileData = [], width = 800, height = 500 }: GameCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
 
@@ -34,10 +36,14 @@ export default function GameCanvas({ width = 800, height = 500 }: GameCanvasProp
       },
     });
 
+    // Pass tile data to the scene via the game registry before the scene runs
+    gameRef.current.registry.set('tileData', tileData);
+
     return () => {
       gameRef.current?.destroy(true);
       gameRef.current = null;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [width, height]);
 
   return (

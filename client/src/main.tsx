@@ -5,13 +5,10 @@ import './styles/tokens.css'
 import './styles/shell.css'
 import './styles/components.css'
 import './styles/motion.css'
-import { AuthProvider } from './auth/AuthContext'
 import App from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    <App />
   </StrictMode>,
 )
