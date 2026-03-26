@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { type Tile, type Level, type TileType, type EditorTool } from '../../types/level';
 import TilePalette from './TilePalette';
 import TileCanvas from './TileCanvas';
-import GameCanvas from '../../game/GameCanvas';
 
 const MAX_UNDO = 50;
 
@@ -30,9 +29,6 @@ export default function LevelEditor({ level, onSave, onCancel }: Props) {
   const [redoStack, setRedoStack] = useState<Map<string, Tile>[]>([]);
   const [pendingPortalId, setPendingPortalId] = useState<string | null>(null);
   const [publishError, setPublishError] = useState<string | null>(null);
-  const [previewing, setPreviewing] = useState(false);
-  // Snapshot of tileMap captured at preview start
-  const [previewTiles, setPreviewTiles] = useState<Tile[]>([]);
 
   // Snapshot taken at gesture start so each drag = one undo step
   const preGestureSnap = useRef<Map<string, Tile> | null>(null);
@@ -163,15 +159,6 @@ export default function LevelEditor({ level, onSave, onCancel }: Props) {
     onSave(buildLevel(false));
   }
 
-  function handlePreview() {
-    setPreviewTiles(Array.from(tileMap.values()));
-    setPreviewing(true);
-  }
-
-  function handleExitPreview() {
-    setPreviewing(false);
-  }
-
   function handlePublish() {
     const err = validateForPublish();
     if (err) {
@@ -188,24 +175,6 @@ export default function LevelEditor({ level, onSave, onCancel }: Props) {
 
   return (
     <div className="xp-editor-layout">
-      {/* ── Preview overlay ─────────────────────────────────────── */}
-      {previewing && (
-        <div className="xp-preview-overlay">
-          <div className="xp-preview-toolbar">
-            <span className="xp-preview-label">Preview Mode — changes are not saved</span>
-            <button
-              type="button"
-              className="xp-btn danger"
-              onClick={handleExitPreview}
-            >
-              Exit Preview
-            </button>
-          </div>
-          <div className="xp-preview-canvas">
-            <GameCanvas tileData={previewTiles} />
-          </div>
-        </div>
-      )}
       {/* ── Toolbar ─────────────────────────────────────────────── */}
       <div className="xp-editor-toolbar">
         <input
@@ -249,9 +218,6 @@ export default function LevelEditor({ level, onSave, onCancel }: Props) {
 
         <button type="button" className="xp-btn ghost" onClick={onCancel}>
           Cancel
-        </button>
-        <button type="button" className="xp-btn ghost" onClick={handlePreview}>
-          ▶ Preview
         </button>
         <button type="button" className="xp-btn" onClick={handleSaveDraft}>
           Save Draft

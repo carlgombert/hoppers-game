@@ -159,7 +159,7 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
       return;
     }
     await db.query(`DELETE FROM levels WHERE id = $1`, [req.params.id]);
-    res.status(204).end();
+    res.json({ ok: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
