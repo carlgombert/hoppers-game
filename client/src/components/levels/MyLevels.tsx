@@ -3,6 +3,7 @@ import { type Level } from '../../types/level';
 
 interface Props {
   levels: Level[];
+  loading?: boolean;
   onPlay: (level: Level) => void;
   onEdit: (level: Level) => void;
   onDelete: (id: string) => void;
@@ -17,7 +18,7 @@ function formatDate(iso: string) {
   });
 }
 
-export default function MyLevels({ levels, onPlay, onEdit, onDelete, onCreateNew }: Props) {
+export default function MyLevels({ levels, loading, onPlay, onEdit, onDelete, onCreateNew }: Props) {
   return (
     <div className="xp-levels-layout">
       {/* Toolbar */}
@@ -31,8 +32,15 @@ export default function MyLevels({ levels, onPlay, onEdit, onDelete, onCreateNew
         </button>
       </div>
 
+      {/* Loading state */}
+      {loading && levels.length === 0 && (
+        <div className="xp-levels-empty">
+          <p className="xp-levels-empty-title">Loading levels…</p>
+        </div>
+      )}
+
       {/* Empty state */}
-      {levels.length === 0 && (
+      {!loading && levels.length === 0 && (
         <div className="xp-levels-empty">
           <ChromeIcon variant="levels" className="xp-levels-empty-icon" size={48} />
           <p className="xp-levels-empty-title">No levels yet</p>

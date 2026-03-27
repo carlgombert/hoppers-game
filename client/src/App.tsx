@@ -1,17 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import ChromeIcon, { type ChromeIconVariant } from './components/ChromeIcon';
 import PanelChrome from './components/PanelChrome';
 import GameCanvas from './game/GameCanvas';
 import LevelEditor from './components/editor/LevelEditor';
 import MyLevels from './components/levels/MyLevels';
-import { type Level } from './types/level';
-
-type NavId = 'build' | 'levels' | 'party' | 'settings';
-type ViewId = NavId | 'game';
 import LoginScreen from './components/auth/LoginScreen';
 import CreateAccountScreen from './components/auth/CreateAccountScreen';
 import { getAvatarSrc } from './components/auth/AvatarPicker';
 import { useAuth } from './auth/AuthContext';
+import {
+  fetchMyLevels,
+  createLevel,
+  patchLevel,
+  deleteLevel,
+  type ApiLevel,
+} from './api/client';
+import { type Level } from './types/level';
+
+type NavId = 'build' | 'levels' | 'party' | 'settings';
+type ViewId = NavId | 'game';
+type AuthView = 'login' | 'register';
 
 interface NavItem {
   id: NavId;
@@ -31,19 +39,30 @@ function navForView(view: ViewId): NavItem {
   return NAV_ITEMS.find((n) => n.id === view) ?? NAV_ITEMS[0];
 }
 
-type AuthView = 'login' | 'register';
+function apiLevelToLevel(l: ApiLevel): Level {
+  return {
+    id: l.id,
+    title: l.title,
+    description: l.description ?? '',
+    tile_data: l.tile_data ?? [],
+    published: l.published,
+    created_at: l.created_at,
+    updated_at: l.updated_at,
+  };
+}
 
 export default function App() {
+  const { user, logout } = useAuth();
+  const [authView, setAuthView] = useState<AuthView>('login');
+
   const [view, setView] = useState<ViewId>('build');
   const [levels, setLevels] = useState<Level[]>([]);
   const [editingLevel, setEditingLevel] = useState<Level | null>(null);
   const [playingLevel, setPlayingLevel] = useState<Level | null>(null);
+  const [levelsLoading, setLevelsLoading] = useState(false);
 
   const activeNavId: NavId = view === 'game' ? 'levels' : view;
   const currentNav = navForView(view);
-  const { user, logout } = useAuth();
-  const [authView, setAuthView] = useState<AuthView>('login');
-  const [activeTab, setActiveTab] = useState<NavItem['id']>('play');
 
   // ── Auth gate ─────────────────────────────────────────────
   if (!user) {
@@ -53,35 +72,84 @@ export default function App() {
     return <CreateAccountScreen onSwitchToLogin={() => setAuthView('login')} />;
   }
 
-  // ── Authenticated shell ───────────────────────────────────
-  const navItems: NavItem[] = [
-    { id: 'play', label: 'Play Game', icon: 'game', content: 'game' },
-    { id: 'build', label: 'Level Editor', icon: 'editor', content: 'editor' },
-    { id: 'levels', label: 'My Levels', icon: 'levels', content: 'levels' },
-    { id: 'party', label: 'Party Lobby', icon: 'party', content: 'party' },
-    { id: 'settings', label: 'Settings', icon: 'settings', content: 'settings' },
-  ];
+  // ── Level management ──────────────────────────────────────
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const loadLevels = useCallback(async () => {
+    setLevelsLoading(true);
+    try {
+      const apiLevels = await fetchMyLevels();
+      setLevels(apiLevels.map(apiLevelToLevel));
+    } catch {
+      // silently ignore — levels stay as-is
+    } finally {
+      setLevelsLoading(false);
+    }
+  }, []);
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    loadLevels();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if (view === 'levels') loadLevels();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
 
   function goToEditor(level?: Level) {
     setEditingLevel(level ?? null);
     setView('build');
   }
 
-  function handleSaveLevel(level: Level) {
-    setLevels((prev) => {
-      const idx = prev.findIndex((l) => l.id === level.id);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = level;
-        return next;
+  async function handleSaveLevel(level: Level) {
+    try {
+      const existing = levels.find((l) => l.id === level.id);
+      let saved: ApiLevel;
+      if (existing) {
+        saved = await patchLevel(level.id, {
+          title: level.title,
+          description: level.description,
+          tile_data: level.tile_data,
+          published: level.published,
+        });
+      } else {
+        saved = await createLevel(level.title, level.description, level.tile_data);
+        if (level.published) {
+          saved = await patchLevel(saved.id, {
+            published: true,
+            tile_data: level.tile_data,
+          });
+        }
       }
-      return [...prev, level];
-    });
+      const savedLevel = apiLevelToLevel(saved);
+      setLevels((prev) => {
+        const idx = prev.findIndex((l) => l.id === savedLevel.id || l.id === level.id);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = savedLevel;
+          return next;
+        }
+        return [...prev, savedLevel];
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Save failed';
+      alert(`Could not save level: ${msg}`);
+      return;
+    }
     setView('levels');
   }
 
-  function handleDeleteLevel(id: string) {
-    setLevels((prev) => prev.filter((l) => l.id !== id));
+  async function handleDeleteLevel(id: string) {
+    try {
+      await deleteLevel(id);
+      setLevels((prev) => prev.filter((l) => l.id !== id));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Delete failed';
+      alert(`Could not delete level: ${msg}`);
+    }
   }
 
   function handlePlayLevel(level: Level) {
@@ -96,11 +164,9 @@ export default function App() {
 
   return (
     <div className="xp-app-layout">
-      {/* ── Sidebar Navigation ───────────────────────────────────── */}
       <nav className="xp-sidebar-nav" aria-label="Main Navigation">
         <div className="xp-sidebar-gloss" aria-hidden="true" />
 
-        {/* User Profile Band */}
         <div className="xp-user-profile">
           <div className="xp-user-avatar">
             {user.avatar_id ? (
@@ -121,7 +187,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Navigation Menu */}
         <div className="xp-nav-menu">
           <div className="xp-pane-heading">PROGRAMS</div>
           {NAV_ITEMS.map((item) => (
@@ -158,19 +223,23 @@ export default function App() {
           </div>
         </div>
 
-        {/* Footer Strip — Split Bar Frame */}
         <div className="xp-sidebar-footer">
           <button type="button" className="xp-start-strip" onClick={() => goToEditor()}>
             New Level
           </button>
           <div className="xp-footer-divider" aria-hidden="true" />
-          <button type="button" className="xp-orb-btn" aria-label="Quick launch" onClick={() => setView('levels')}>
+          <button
+            type="button"
+            className="xp-orb-btn"
+            aria-label="Sign out"
+            onClick={logout}
+            title="Sign out"
+          >
             <ChromeIcon variant="orb" className="xp-orb-icon" />
           </button>
         </div>
       </nav>
 
-      {/* ── Main Stage ────────────────────────────────────────────── */}
       <main className="xp-main-stage">
         <PanelChrome
           title={currentNav.label}
@@ -184,12 +253,10 @@ export default function App() {
             ) : null
           }
         >
-          {/* Game canvas — launched from My Levels with a specific level */}
           {view === 'game' && (
-            <GameCanvas tileData={playingLevel?.tile_data ?? []} />
+            <GameCanvas tileData={playingLevel?.tile_data ?? []} levelId={playingLevel?.id} />
           )}
 
-          {/* Level Editor — key forces fresh mount when switching levels */}
           {view === 'build' && (
             <LevelEditor
               key={editingLevel?.id ?? 'new'}
@@ -199,10 +266,10 @@ export default function App() {
             />
           )}
 
-          {/* My Levels */}
           {view === 'levels' && (
             <MyLevels
               levels={levels}
+              loading={levelsLoading}
               onPlay={handlePlayLevel}
               onEdit={(level) => goToEditor(level)}
               onDelete={handleDeleteLevel}
@@ -210,7 +277,6 @@ export default function App() {
             />
           )}
 
-          {/* Party Lobby */}
           {view === 'party' && (
             <div className="xp-placeholder">
               <ChromeIcon variant="party" className="xp-placeholder-icon" />
@@ -218,7 +284,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Settings */}
           {view === 'settings' && (
             <div className="xp-placeholder">
               <ChromeIcon variant="settings" className="xp-placeholder-icon" />
