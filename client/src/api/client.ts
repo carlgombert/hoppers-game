@@ -152,3 +152,37 @@ export async function deleteLevel(id: string): Promise<void> {
   });
   return handleResponse(res);
 }
+
+// ── Saves ────────────────────────────────────────────────────────────────────
+
+export interface SaveState {
+  id: string;
+  user_id: string;
+  level_id: string;
+  checkpoint_state: {
+    x: number;
+    y: number;
+    checkpointTileKey?: string;
+  };
+  saved_at: string;
+}
+
+export async function fetchSave(levelId: string): Promise<SaveState | null> {
+  const res = await fetch(`${API_BASE}/saves/${levelId}`, {
+    headers: authHeaders(),
+  });
+  if (res.status === 404) return null;
+  return handleResponse<SaveState>(res);
+}
+
+export async function postSave(
+  levelId: string,
+  checkpointState: { x: number; y: number; checkpointTileKey?: string },
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/saves`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ level_id: levelId, checkpoint_state: checkpointState }),
+  });
+  return handleResponse(res);
+}

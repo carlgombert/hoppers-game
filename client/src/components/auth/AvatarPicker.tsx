@@ -30,6 +30,7 @@ const AVATARS: Record<number, string> = {
 export const AVATAR_COUNT = 12;
 
 /** Returns the bundled image URL for the given avatar id (1–12). */
+// eslint-disable-next-line react-refresh/only-export-components
 export function getAvatarSrc(avatarId: number): string {
   return AVATARS[avatarId] ?? avatar1;
 }

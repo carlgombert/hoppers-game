@@ -51,6 +51,14 @@ function apiLevelToLevel(l: ApiLevel): Level {
   };
 }
 
+function formatTime(ms: number) {
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  const centis = Math.floor((ms % 1000) / 10);
+  return `${min}:${sec.toString().padStart(2, '0')}.${centis.toString().padStart(2, '0')}`;
+}
+
 export default function App() {
   const { user, logout } = useAuth();
   const [authView, setAuthView] = useState<AuthView>('login');
@@ -60,22 +68,10 @@ export default function App() {
   const [editingLevel, setEditingLevel] = useState<Level | null>(null);
   const [playingLevel, setPlayingLevel] = useState<Level | null>(null);
   const [levelsLoading, setLevelsLoading] = useState(false);
+  const [completionTime, setCompletionTime] = useState<number | null>(null);
 
-  const activeNavId: NavId = view === 'game' ? 'levels' : view;
-  const currentNav = navForView(view);
-
-  // ── Auth gate ─────────────────────────────────────────────
-  if (!user) {
-    if (authView === 'login') {
-      return <LoginScreen onSwitchToRegister={() => setAuthView('register')} />;
-    }
-    return <CreateAccountScreen onSwitchToLogin={() => setAuthView('login')} />;
-  }
-
-  // ── Level management ──────────────────────────────────────
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const loadLevels = useCallback(async () => {
+    if (!user) return;
     setLevelsLoading(true);
     try {
       const apiLevels = await fetchMyLevels();
@@ -85,19 +81,28 @@ export default function App() {
     } finally {
       setLevelsLoading(false);
     }
-  }, []);
+  }, [user]);
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
-    loadLevels();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (user) loadLevels();
+  }, [user, loadLevels]);
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
-    if (view === 'levels') loadLevels();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view]);
+    if (view === 'levels' && user) loadLevels();
+  }, [view, user, loadLevels]);
+
+  // ── Auth gate ─────────────────────────────────────────────────────────────
+  if (!user) {
+    if (authView === 'login') {
+      return <LoginScreen onSwitchToRegister={() => setAuthView('register')} />;
+    }
+    return <CreateAccountScreen onSwitchToLogin={() => setAuthView('login')} />;
+  }
+
+  // ── Event handlers ────────────────────────────────────────────────────────
+
+  const activeNavId: NavId = view === 'game' ? 'levels' : view;
+  const currentNav = navForView(view);
 
   function goToEditor(level?: Level) {
     setEditingLevel(level ?? null);
@@ -154,12 +159,18 @@ export default function App() {
 
   function handlePlayLevel(level: Level) {
     setPlayingLevel(level);
+    setCompletionTime(null);
     setView('game');
   }
 
   function handleQuitGame() {
     setPlayingLevel(null);
+    setCompletionTime(null);
     setView('levels');
+  }
+
+  function handleLevelComplete(elapsedMs: number) {
+    setCompletionTime(elapsedMs);
   }
 
   return (
@@ -253,10 +264,46 @@ export default function App() {
             ) : null
           }
         >
+          {/* ── Game canvas ──────────────────────────────────── */}
           {view === 'game' && (
-            <GameCanvas tileData={playingLevel?.tile_data ?? []} levelId={playingLevel?.id} />
+            <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+              <GameCanvas
+                tileData={playingLevel?.tile_data ?? []}
+                levelId={playingLevel?.id}
+                onComplete={handleLevelComplete}
+              />
+
+              {/* Completion overlay */}
+              {completionTime !== null && (
+                <div className="xp-completion-overlay">
+                  <div className="xp-completion-card">
+                    <div className="xp-completion-title">Level Complete! 🎉</div>
+                    <div className="xp-completion-time">
+                      {formatTime(completionTime)}
+                    </div>
+                    <div className="xp-completion-actions">
+                      <button
+                        type="button"
+                        className="xp-btn primary"
+                        onClick={() => handlePlayLevel(playingLevel!)}
+                      >
+                        Play Again
+                      </button>
+                      <button
+                        type="button"
+                        className="xp-btn ghost"
+                        onClick={handleQuitGame}
+                      >
+                        Back to Levels
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
+          {/* ── Level Editor ─────────────────────────────────── */}
           {view === 'build' && (
             <LevelEditor
               key={editingLevel?.id ?? 'new'}
@@ -266,6 +313,7 @@ export default function App() {
             />
           )}
 
+          {/* ── My Levels ────────────────────────────────────── */}
           {view === 'levels' && (
             <MyLevels
               levels={levels}
