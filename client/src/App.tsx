@@ -19,6 +19,10 @@ import { type Level } from './types/level';
 
 type NavId = 'build' | 'levels' | 'party' | 'settings';
 type ViewId = NavId | 'game';
+import LoginScreen from './components/auth/LoginScreen';
+import CreateAccountScreen from './components/auth/CreateAccountScreen';
+import { getAvatarSrc } from './components/auth/AvatarPicker';
+import { useAuth } from './auth/AuthContext';
 type AuthView = 'login' | 'register';
 
 interface NavItem {
@@ -103,6 +107,26 @@ export default function App() {
 
   const activeNavId: NavId = view === 'game' ? 'levels' : view;
   const currentNav = navForView(view);
+  const { user, logout } = useAuth();
+  const [authView, setAuthView] = useState<AuthView>('login');
+  const [activeTab, setActiveTab] = useState<NavItem['id']>('play');
+
+  // ── Auth gate ─────────────────────────────────────────────
+  if (!user) {
+    if (authView === 'login') {
+      return <LoginScreen onSwitchToRegister={() => setAuthView('register')} />;
+    }
+    return <CreateAccountScreen onSwitchToLogin={() => setAuthView('login')} />;
+  }
+
+  // ── Authenticated shell ───────────────────────────────────
+  const navItems: NavItem[] = [
+    { id: 'play', label: 'Play Game', icon: 'game', content: 'game' },
+    { id: 'build', label: 'Level Editor', icon: 'editor', content: 'editor' },
+    { id: 'levels', label: 'My Levels', icon: 'levels', content: 'levels' },
+    { id: 'party', label: 'Party Lobby', icon: 'party', content: 'party' },
+    { id: 'settings', label: 'Settings', icon: 'settings', content: 'settings' },
+  ];
 
   function goToEditor(level?: Level) {
     setEditingLevel(level ?? null);
