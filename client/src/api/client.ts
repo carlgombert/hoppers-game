@@ -155,15 +155,19 @@ export async function deleteLevel(id: string): Promise<void> {
 
 // ── Saves ────────────────────────────────────────────────────────────────────
 
+export interface CheckpointState {
+  x?: number;
+  y?: number;
+  checkpointTileKey?: string;
+  completed?: boolean;
+  elapsed_ms?: number;
+}
+
 export interface SaveState {
   id: string;
   user_id: string;
   level_id: string;
-  checkpoint_state: {
-    x: number;
-    y: number;
-    checkpointTileKey?: string;
-  };
+  checkpoint_state: CheckpointState;
   saved_at: string;
 }
 
@@ -177,7 +181,7 @@ export async function fetchSave(levelId: string): Promise<SaveState | null> {
 
 export async function postSave(
   levelId: string,
-  checkpointState: { x: number; y: number; checkpointTileKey?: string },
+  checkpointState: CheckpointState,
 ): Promise<void> {
   const res = await fetch(`${API_BASE}/saves`, {
     method: 'POST',
