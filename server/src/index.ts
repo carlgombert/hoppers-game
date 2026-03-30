@@ -2,7 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import http from 'http';
 import { Server as IOServer } from 'socket.io';
-import { connectRedis } from './redis/redis';
+import { db } from './db/db';
+import { connectRedis, disconnectRedis } from './redis/redis';
 
 import authRouter from './routes/auth';
 import levelsRouter from './routes/levels';
@@ -10,6 +11,15 @@ import partiesRouter from './routes/parties';
 import savesRouter from './routes/saves';
 
 const PORT = process.env.PORT ?? 3001;
+
+function closeHttpServer(server: http.Server) {
+  return new Promise<void>((resolve, reject) => {
+    server.close((err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+}
 
 async function main() {
   await connectRedis();
@@ -95,6 +105,31 @@ async function main() {
 
   httpServer.listen(PORT, () => {
     console.log(`Hoppers server running on http://localhost:${PORT}`);
+  });
+
+  let shuttingDown = false;
+  const shutdown = async (signal: NodeJS.Signals) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`${signal} received, shutting down...`);
+
+    try {
+      io.close();
+      await closeHttpServer(httpServer);
+      await db.end();
+      await disconnectRedis();
+      process.exit(0);
+    } catch (err) {
+      console.error('Shutdown failed:', err);
+      process.exit(1);
+    }
+  };
+
+  process.on('SIGINT', () => {
+    void shutdown('SIGINT');
+  });
+  process.on('SIGTERM', () => {
+    void shutdown('SIGTERM');
   });
 }
 

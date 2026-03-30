@@ -30,6 +30,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS levels_updated_at ON levels;
+
 CREATE TRIGGER levels_updated_at
   BEFORE UPDATE ON levels
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
