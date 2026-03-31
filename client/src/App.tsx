@@ -4,6 +4,7 @@ import PanelChrome from './components/PanelChrome';
 import GameCanvas from './game/GameCanvas';
 import LevelEditor from './components/editor/LevelEditor';
 import MyLevels from './components/levels/MyLevels';
+import SettingsPage from './components/settings/SettingsPage';
 import LoginScreen from './components/auth/LoginScreen';
 import CreateAccountScreen from './components/auth/CreateAccountScreen';
 import { getAvatarSrc } from './components/auth/AvatarPicker';
@@ -333,10 +334,7 @@ export default function App() {
           )}
 
           {view === 'settings' && (
-            <div className="xp-placeholder">
-              <ChromeIcon variant="settings" className="xp-placeholder-icon" />
-              <span>Settings coming soon…</span>
-            </div>
+            <SettingsPage />
           )}
         </PanelChrome>
       </main>
