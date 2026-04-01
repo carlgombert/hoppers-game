@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as Phaser from 'phaser';
+import { type Socket } from 'socket.io-client';
 import { MainScene } from './scenes/MainScene';
 import { type Tile } from '../types/level';
 import { fetchSave, postSave } from '../api/client';
@@ -10,6 +11,12 @@ interface GameCanvasProps {
   width?: number;
   height?: number;
   onComplete?: (elapsedMs: number) => void;
+  /** Socket.io socket for multiplayer — omit for solo play */
+  socket?: Socket;
+  /** 6-char party code for multiplayer — omit for solo play */
+  partyCode?: string;
+  /** Called when ANY player in the party finishes (multiplayer only) */
+  onPartyFinished?: (socketId: string, time: number) => void;
 }
 
 export default function GameCanvas({
@@ -18,6 +25,9 @@ export default function GameCanvas({
   width = 800,
   height = 500,
   onComplete,
+  socket,
+  partyCode,
+  onPartyFinished,
 }: GameCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
@@ -75,6 +85,21 @@ export default function GameCanvas({
       game.registry.set('tileData', tileData);
       game.registry.set('savedCheckpoint', savedCheckpoint);
 
+      // Multiplayer registry values
+      game.registry.set('socket', socket ?? null);
+      game.registry.set('partyCode', partyCode ?? null);
+
+      // party:finished — any player finished (multiplayer only)
+      if (socket && partyCode && onPartyFinished) {
+        const handler = (payload: { id: string; time: number }) => {
+          if (mounted) onPartyFinished(payload.id, payload.time);
+        };
+        socket.on('party:finished', handler);
+        // Store cleanup ref on game so it can be removed on unmount
+        game.registry.set('_partyFinishedHandler', handler);
+        game.registry.set('_partySocket', socket);
+      }
+
       // Save callback — called by scene when player hits a checkpoint
       game.registry.set('onCheckpoint', async (cx: number, cy: number) => {
         if (levelId) {
@@ -100,11 +125,21 @@ export default function GameCanvas({
 
     return () => {
       mounted = false;
+      // Remove party:finished socket listener if registered
+      if (gameRef.current) {
+        const sock = gameRef.current.registry.get('_partySocket') as Socket | null;
+        const handler = gameRef.current.registry.get('_partyFinishedHandler') as
+          | ((payload: { id: string; time: number }) => void)
+          | null;
+        if (sock && handler) {
+          sock.off('party:finished', handler);
+        }
+      }
       gameRef.current?.destroy(true);
       gameRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [width, height, levelId]);
+  }, [width, height, levelId, socket, partyCode]);
 
   return (
     <div

@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
+import { type Socket } from 'socket.io-client';
 import ChromeIcon, { type ChromeIconVariant } from './components/ChromeIcon';
 import PanelChrome from './components/PanelChrome';
 import GameCanvas from './game/GameCanvas';
 import LevelEditor from './components/editor/LevelEditor';
 import MyLevels from './components/levels/MyLevels';
-import SettingsPage from './components/settings/SettingsPage';
+import PartyLobby, { type PartyReadyPayload } from './components/party/PartyLobby';
 import LoginScreen from './components/auth/LoginScreen';
 import CreateAccountScreen from './components/auth/CreateAccountScreen';
 import { getAvatarSrc } from './components/auth/AvatarPicker';
@@ -70,6 +71,11 @@ export default function App() {
   const [playingLevel, setPlayingLevel] = useState<Level | null>(null);
   const [levelsLoading, setLevelsLoading] = useState(false);
   const [completionTime, setCompletionTime] = useState<number | null>(null);
+
+  // Party / multiplayer state
+  const [partySocket, setPartySocket] = useState<Socket | null>(null);
+  const [partyCode, setPartyCode] = useState<string | null>(null);
+  const [partyFinishTimes, setPartyFinishTimes] = useState<Map<string, number>>(new Map());
 
   const loadLevels = useCallback(async () => {
     if (!user) return;
@@ -167,7 +173,23 @@ export default function App() {
   function handleQuitGame() {
     setPlayingLevel(null);
     setCompletionTime(null);
+    setPartyFinishTimes(new Map());
+    setPartySocket(null);
+    setPartyCode(null);
     setView('levels');
+  }
+
+  function handlePartyReady({ socket, partyCode: code, level }: PartyReadyPayload) {
+    setPartySocket(socket);
+    setPartyCode(code);
+    setPartyFinishTimes(new Map());
+    setPlayingLevel(level);
+    setCompletionTime(null);
+    setView('game');
+  }
+
+  function handlePartyFinished(socketId: string, time: number) {
+    setPartyFinishTimes((prev) => new Map(prev).set(socketId, time));
   }
 
   function handleLevelComplete(elapsedMs: number) {
@@ -272,10 +294,13 @@ export default function App() {
                 tileData={playingLevel?.tile_data ?? []}
                 levelId={playingLevel?.id}
                 onComplete={handleLevelComplete}
+                socket={partySocket ?? undefined}
+                partyCode={partyCode ?? undefined}
+                onPartyFinished={handlePartyFinished}
               />
 
-              {/* Completion overlay */}
-              {completionTime !== null && (
+              {/* Solo completion overlay */}
+              {completionTime !== null && !partySocket && (
                 <div className="xp-completion-overlay">
                   <div className="xp-completion-card">
                     <div className="xp-completion-title">Level Complete! 🎉</div>
@@ -296,6 +321,36 @@ export default function App() {
                         onClick={handleQuitGame}
                       >
                         Back to Levels
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Multiplayer finish overlay */}
+              {partySocket && partyFinishTimes.size > 0 && (
+                <div className="xp-completion-overlay">
+                  <div className="xp-completion-card">
+                    <div className="xp-completion-title">
+                      {partyFinishTimes.size === 1 ? 'First Finish!' : 'Both Finished!'}
+                    </div>
+                    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                      {Array.from(partyFinishTimes.entries()).map(([id, t], i) => (
+                        <div key={id} className="xp-mp-finish-row">
+                          <span className="xp-mp-finish-label">
+                            {id === partySocket.id ? 'You' : `Player ${i + 1}`}
+                          </span>
+                          <span className="xp-mp-finish-time">{formatTime(t)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="xp-completion-actions">
+                      <button
+                        type="button"
+                        className="xp-btn ghost"
+                        onClick={handleQuitGame}
+                      >
+                        Leave Party
                       </button>
                     </div>
                   </div>
@@ -327,14 +382,17 @@ export default function App() {
           )}
 
           {view === 'party' && (
-            <div className="xp-placeholder">
-              <ChromeIcon variant="party" className="xp-placeholder-icon" />
-              <span>Party Lobby coming soon…</span>
-            </div>
+            <PartyLobby
+              myLevels={levels}
+              onPartyReady={handlePartyReady}
+            />
           )}
 
           {view === 'settings' && (
-            <SettingsPage />
+            <div className="xp-placeholder">
+              <ChromeIcon variant="settings" className="xp-placeholder-icon" />
+              <span>Settings coming soon…</span>
+            </div>
           )}
         </PanelChrome>
       </main>

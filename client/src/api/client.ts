@@ -190,3 +190,41 @@ export async function postSave(
   });
   return handleResponse(res);
 }
+
+// ── Levels (single) ──────────────────────────────────────────────────────────
+
+export async function fetchLevel(id: string): Promise<ApiLevel> {
+  const res = await fetch(`${API_BASE}/levels/${id}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse<ApiLevel>(res);
+}
+
+// ── Parties ──────────────────────────────────────────────────────────────────
+
+export interface ApiParty {
+  id: string;
+  code: string;
+  host_id: string;
+  level_id: string;
+  state: 'waiting' | 'active' | 'done';
+  created_at: string;
+}
+
+export async function createParty(levelId: string): Promise<ApiParty> {
+  const res = await fetch(`${API_BASE}/parties`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ level_id: levelId }),
+  });
+  return handleResponse<ApiParty>(res);
+}
+
+export async function joinParty(code: string): Promise<ApiParty> {
+  const res = await fetch(`${API_BASE}/parties/join`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ code }),
+  });
+  return handleResponse<ApiParty>(res);
+}
