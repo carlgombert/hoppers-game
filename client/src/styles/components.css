@@ -3863,3 +3863,369 @@ textarea {
     transform: none;
   }
 }
+/* ============================================================
+   Settings Page
+   Segmented metallic module panels for account management.
+   ============================================================ */
+
+/* ── Settings Layout ─────────────────────────────────────── */
+
+.xp-settings-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 18px 20px 24px;
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+/* ── Settings Module — Framed Pane Unit ──────────────────── */
+
+.xp-settings-module {
+  position: relative;
+  border: 1px solid rgba(154, 163, 185, 0.72);
+  border-radius: 11px;
+  overflow: hidden;
+  margin-bottom: 14px;
+  background: linear-gradient(to bottom, #f5f7fc, #e8ecf5);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.08),
+    0 2px 6px rgba(7, 10, 19, 0.1);
+}
+
+/* Inner rim inset */
+.xp-settings-module::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.54);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Module Header Cap ───────────────────────────────────── */
+
+.xp-settings-module-header {
+  position: relative;
+  z-index: 1;
+  padding: 7px 14px 6px;
+  font-family: Tahoma, 'Segoe UI', Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--xp-text-on-dark, #f1f2f8);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.52);
+  background: linear-gradient(
+    180deg,
+    #9aa1bc 0%,
+    #838baa 38%,
+    #6b6492 40%,
+    #524d72 100%
+  );
+  border-bottom: 1px solid rgba(20, 23, 33, 0.82);
+}
+
+/* Gloss band on module header */
+.xp-settings-module-header::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 44%;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.48), rgba(255, 255, 255, 0.08));
+}
+
+/* Lower orchid seam */
+.xp-settings-module-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    rgba(143, 125, 184, 0.04),
+    rgba(143, 125, 184, 0.34) 30%,
+    rgba(143, 125, 184, 0.34) 70%,
+    rgba(143, 125, 184, 0.04)
+  );
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+/* ── Module Body — Inset Light Pane ──────────────────────── */
+
+.xp-settings-module-body {
+  position: relative;
+  z-index: 1;
+  padding: 16px 16px 18px;
+}
+
+/* ── Identity Strip ──────────────────────────────────────── */
+
+.xp-settings-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px 12px;
+  margin-bottom: 16px;
+  border-radius: 9px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.34));
+  border: 1px solid rgba(150, 160, 180, 0.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.06),
+    0 1px 3px rgba(7, 10, 19, 0.1);
+}
+
+.xp-settings-identity-avatar {
+  flex: 0 0 52px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid rgba(143, 125, 184, 0.5);
+  outline: 2px solid rgba(198, 200, 216, 0.32);
+  outline-offset: 1px;
+  background:
+    radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.52) 0%, rgba(255, 255, 255, 0) 32%),
+    linear-gradient(to bottom, #8d96b0 0%, #434b5f 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.34),
+    0 3px 10px rgba(0, 0, 0, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.xp-settings-identity-avatar-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.xp-settings-identity-avatar-icon {
+  width: 28px;
+  height: 28px;
+  color: var(--xp-silver-glow, #d8dae8);
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.3));
+}
+
+.xp-settings-identity-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.xp-settings-identity-name {
+  font-family: Tahoma, 'Segoe UI', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary, #101521);
+  letter-spacing: 0.1px;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xp-settings-identity-email {
+  font-family: Tahoma, 'Segoe UI', Arial, sans-serif;
+  font-size: 11px;
+  color: var(--color-text-tertiary, #4a566f);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Settings Section — Sub-group Within Body ────────────── */
+
+.xp-settings-section {
+  margin-bottom: 14px;
+}
+
+.xp-settings-section-label {
+  font-family: Tahoma, 'Segoe UI', Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-secondary, #2a3346);
+  letter-spacing: 0.3px;
+  margin-bottom: 10px;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.56);
+}
+
+/* ── Settings Feedback Banner ────────────────────────────── */
+
+.xp-settings-feedback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-family: Tahoma, 'Segoe UI', Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  border: 1px solid transparent;
+}
+
+.xp-settings-feedback.success {
+  color: #1e4d2b;
+  background:
+    linear-gradient(to bottom, rgba(200, 240, 210, 0.9), rgba(170, 220, 185, 0.8));
+  border-color: rgba(80, 160, 100, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 1px 2px rgba(7, 10, 19, 0.08);
+}
+
+.xp-settings-feedback.error {
+  color: #5a1a24;
+  background:
+    linear-gradient(to bottom, rgba(244, 215, 220, 0.9), rgba(220, 190, 198, 0.8));
+  border-color: rgba(160, 60, 80, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 1px 2px rgba(7, 10, 19, 0.08);
+}
+
+.xp-settings-feedback-icon {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+}
+
+/* ── Settings Actions Row ────────────────────────────────── */
+
+.xp-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.xp-settings-save-btn {
+  min-width: 128px;
+}
+
+/* ── Account Info Rows ───────────────────────────────────── */
+
+.xp-settings-info-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 7px 0;
+}
+
+.xp-settings-info-separator {
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    rgba(154, 163, 185, 0.06),
+    rgba(154, 163, 185, 0.36) 20%,
+    rgba(154, 163, 185, 0.36) 80%,
+    rgba(154, 163, 185, 0.06)
+  );
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+  margin: 0 -2px;
+}
+
+.xp-settings-info-label {
+  flex: 0 0 112px;
+  font-family: Tahoma, 'Segoe UI', Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-tertiary, #4a566f);
+  letter-spacing: 0.2px;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.xp-settings-info-value {
+  flex: 1;
+  min-width: 0;
+  font-family: Tahoma, 'Segoe UI', Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary, #101521);
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Account Action Rows ─────────────────────────────────── */
+
+.xp-settings-action-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 0;
+}
+
+.xp-settings-action-desc {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.xp-settings-action-title {
+  font-family: Tahoma, 'Segoe UI', Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-primary, #101521);
+  letter-spacing: 0.1px;
+}
+
+.xp-settings-action-sub {
+  font-family: Tahoma, 'Segoe UI', Arial, sans-serif;
+  font-size: 11px;
+  color: var(--color-text-tertiary, #4a566f);
+  line-height: 1.35;
+}
+
+.xp-settings-action-btn {
+  flex: 0 0 auto;
+  min-width: 96px;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .xp-settings-layout {
+    padding: 12px 12px 16px;
+  }
+
+  .xp-settings-module-body {
+    padding: 12px 12px 14px;
+  }
+
+  .xp-settings-action-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .xp-settings-action-btn {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .xp-settings-save-btn {
+    width: 100%;
+  }
+
+  .xp-settings-actions {
+    justify-content: stretch;
+  }
+}
