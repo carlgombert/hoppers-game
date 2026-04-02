@@ -57,6 +57,7 @@ export class MainScene extends Phaser.Scene {
   private socket: Socket | null = null;
   private partyCode: string | null = null;
   private ghostSprites = new Map<string, Phaser.GameObjects.Rectangle>();
+  private ghostLabels = new Map<string, Phaser.GameObjects.Text>();
   private moveEmitCounter = 0;
 
   constructor() {
@@ -78,6 +79,7 @@ export class MainScene extends Phaser.Scene {
 
     // Multiplayer setup
     this.ghostSprites.clear();
+    this.ghostLabels.clear();
     this.moveEmitCounter = 0;
     this.socket = this.registry.get('socket') as Socket | null ?? null;
     this.partyCode = this.registry.get('partyCode') as string | null ?? null;
@@ -412,11 +414,21 @@ export class MainScene extends Phaser.Scene {
       this.moveEmitCounter++;
       if (this.moveEmitCounter >= 3) {
         this.moveEmitCounter = 0;
+        const body = this.player.body as Phaser.Physics.Arcade.Body;
+        const onGround = body.blocked.down;
+        let moveState = 'idle';
+        if (this.isDead) {
+          moveState = 'dead';
+        } else if (!onGround) {
+          moveState = 'jumping';
+        } else if (Math.abs(body.velocity.x) > 10) {
+          moveState = 'running';
+        }
         this.socket.emit('player:move', {
           code: this.partyCode,
           x: Math.round(this.player.x),
           y: Math.round(this.player.y),
-          state: this.isDead ? 'dead' : 'alive',
+          state: moveState,
         });
       }
     }
@@ -695,16 +707,36 @@ export class MainScene extends Phaser.Scene {
   }
 
   private updateGhost(id: string, x: number, y: number, state: string) {
+    // Color and alpha per animation state
+    const isDead = state === 'dead';
+    const isJumping = state === 'jumping';
+    const fillColor = isDead ? 0x888888 : isJumping ? 0xd4c8f0 : 0xb9add6;
+    const alpha = isDead ? 0.25 : 0.55;
+
     let ghost = this.ghostSprites.get(id);
     if (!ghost) {
-      // Create a new ghost sprite for this remote player
-      ghost = this.add.rectangle(x, y, PLAYER_W, PLAYER_H, 0xb9add6, 0.62) as unknown as Phaser.GameObjects.Rectangle;
-      (ghost as unknown as Phaser.GameObjects.Rectangle).setStrokeStyle(1, 0xd4c8f0, 0.72);
+      // Create ghost rectangle — no physics body, so no collision with local player
+      ghost = this.add.rectangle(x, y, PLAYER_W, PLAYER_H, fillColor, alpha) as unknown as Phaser.GameObjects.Rectangle;
+      (ghost as unknown as Phaser.GameObjects.Rectangle).setStrokeStyle(1, 0xd4c8f0, 0.7);
       (ghost as unknown as Phaser.GameObjects.Rectangle).setDepth(5);
+
+      // Small "ghost" label above
+      const label = this.add.text(x, y - PLAYER_H - 2, '👻', {
+        fontSize: '10px',
+      }).setAlpha(0.65).setOrigin(0.5, 1).setDepth(6).setScrollFactor(1);
+      this.ghostLabels.set(id, label);
+
       this.ghostSprites.set(id, ghost);
     }
+
     ghost.setPosition(x, y);
-    ghost.setAlpha(state === 'dead' ? 0.28 : 0.62);
+    (ghost as unknown as Phaser.GameObjects.Rectangle).setFillStyle(fillColor, alpha);
+
+    const label = this.ghostLabels.get(id);
+    if (label) {
+      label.setPosition(x, y - PLAYER_H / 2 - 4);
+      label.setAlpha(isDead ? 0.25 : 0.65);
+    }
   }
 
   private removeGhost(id: string) {
@@ -712,6 +744,24 @@ export class MainScene extends Phaser.Scene {
     if (ghost) {
       ghost.destroy();
       this.ghostSprites.delete(id);
+    }
+    const label = this.ghostLabels.get(id);
+    if (label) {
+      label.destroy();
+      this.ghostLabels.delete(id);
+    }
+  }
+
+  shutdown() {
+    // Clean up all ghost sprites and labels when scene is destroyed
+    this.ghostSprites.forEach((g) => g.destroy());
+    this.ghostSprites.clear();
+    this.ghostLabels.forEach((l) => l.destroy());
+    this.ghostLabels.clear();
+    // Remove socket listeners added by this scene
+    if (this.socket) {
+      this.socket.off('player:update');
+      this.socket.off('player:left');
     }
   }
 }

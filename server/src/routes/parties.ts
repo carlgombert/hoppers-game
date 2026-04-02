@@ -22,10 +22,10 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
     return;
   }
   try {
+    // Generate collision-resistant code with up to 10 retries
     let code = generateCode();
-    // Retry on collision
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const exists = await db.query(`SELECT id FROM parties WHERE code = $1`, [code]);
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const exists = await db.query(`SELECT id FROM parties WHERE code = $1 AND state != 'done'`, [code]);
       if (!exists.rows[0]) break;
       code = generateCode();
     }
@@ -36,7 +36,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
     );
     const party = partyResult.rows[0];
 
-    // Add host as a member
+    // Add host as first member
     await db.query(
       `INSERT INTO party_members (party_id, user_id) VALUES ($1, $2)`,
       [party.id, req.userId]
@@ -56,31 +56,74 @@ router.post('/join', requireAuth, async (req: AuthRequest, res: Response) => {
     res.status(400).json({ error: 'code is required' });
     return;
   }
+
+  // Use a serializable transaction to prevent race conditions on simultaneous joins
+  const client = await db.connect();
   try {
-    const partyResult = await db.query(
-      `SELECT * FROM parties WHERE code = $1`,
+    await client.query('BEGIN ISOLATION LEVEL SERIALIZABLE');
+
+    const partyResult = await client.query(
+      `SELECT p.*, COUNT(pm.user_id)::int AS member_count
+       FROM parties p
+       LEFT JOIN party_members pm ON pm.party_id = p.id
+       WHERE p.code = $1
+       GROUP BY p.id
+       FOR UPDATE OF p`,
       [code.toUpperCase()]
     );
     const party = partyResult.rows[0];
+
     if (!party) {
+      await client.query('ROLLBACK');
       res.status(404).json({ error: 'Party not found' });
       return;
     }
+
     if (party.state !== 'waiting') {
-      res.status(409).json({ error: 'Party already started' });
+      await client.query('ROLLBACK');
+      res.status(409).json({ error: 'Party already started or finished' });
       return;
     }
 
-    await db.query(
-      `INSERT INTO party_members (party_id, user_id)
-       VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+    // Reject self-join (host trying to join their own party as a second member)
+    if (party.host_id === req.userId) {
+      await client.query('ROLLBACK');
+      res.status(409).json({ error: 'You are already the host of this party' });
+      return;
+    }
+
+    // Reject if already a member (reconnect after page refresh, etc.)
+    const alreadyMember = await client.query(
+      `SELECT 1 FROM party_members WHERE party_id = $1 AND user_id = $2`,
+      [party.id, req.userId]
+    );
+    if (alreadyMember.rows[0]) {
+      // Idempotent — return the party without error so client can reconnect
+      await client.query('COMMIT');
+      res.json(party);
+      return;
+    }
+
+    // Reject if party is already full (2 members)
+    if (party.member_count >= 2) {
+      await client.query('ROLLBACK');
+      res.status(409).json({ error: 'Party is full' });
+      return;
+    }
+
+    await client.query(
+      `INSERT INTO party_members (party_id, user_id) VALUES ($1, $2)`,
       [party.id, req.userId]
     );
 
+    await client.query('COMMIT');
     res.json(party);
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error(err);
     res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
   }
 });
 
