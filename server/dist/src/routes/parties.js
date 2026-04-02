@@ -1,9 +1,21 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
+const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const db_1 = require("../db/db");
 const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
+// Rate limiter: max 30 party requests per 15 minutes per IP
+const partyLimiter = (0, express_rate_limit_1.default)({
+    windowMs: 15 * 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many party requests, please try again later' },
+});
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function generateCode() {
     let code = '';
@@ -13,7 +25,7 @@ function generateCode() {
     return code;
 }
 // POST /parties — create a party, returns 6-char code
-router.post('/', auth_1.requireAuth, async (req, res) => {
+router.post('/', partyLimiter, auth_1.requireAuth, async (req, res) => {
     const { level_id } = req.body;
     if (!level_id) {
         res.status(400).json({ error: 'level_id is required' });
@@ -40,7 +52,7 @@ router.post('/', auth_1.requireAuth, async (req, res) => {
     }
 });
 // POST /parties/join — join by code
-router.post('/join', auth_1.requireAuth, async (req, res) => {
+router.post('/join', partyLimiter, auth_1.requireAuth, async (req, res) => {
     const { code } = req.body;
     if (!code) {
         res.status(400).json({ error: 'code is required' });

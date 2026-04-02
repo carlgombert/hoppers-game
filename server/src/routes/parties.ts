@@ -1,8 +1,18 @@
 import { Router, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { db } from '../db/db';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 
 const router = Router();
+
+// Rate limiter: max 30 party requests per 15 minutes per IP
+const partyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many party requests, please try again later' },
+});
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -15,7 +25,7 @@ function generateCode(): string {
 }
 
 // POST /parties — create a party, returns 6-char code
-router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
+router.post('/', partyLimiter, requireAuth, async (req: AuthRequest, res: Response) => {
   const { level_id } = req.body;
   if (!level_id) {
     res.status(400).json({ error: 'level_id is required' });
@@ -50,7 +60,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
 });
 
 // POST /parties/join — join by code
-router.post('/join', requireAuth, async (req: AuthRequest, res: Response) => {
+router.post('/join', partyLimiter, requireAuth, async (req: AuthRequest, res: Response) => {
   const { code } = req.body;
   if (!code) {
     res.status(400).json({ error: 'code is required' });
