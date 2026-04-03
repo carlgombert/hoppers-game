@@ -73,12 +73,10 @@ router.post('/join', partyLimiter, requireAuth, async (req: AuthRequest, res: Re
     await client.query('BEGIN ISOLATION LEVEL SERIALIZABLE');
 
     const partyResult = await client.query(
-      `SELECT p.*, COUNT(pm.user_id)::int AS member_count
-       FROM parties p
-       LEFT JOIN party_members pm ON pm.party_id = p.id
-       WHERE p.code = $1
-       GROUP BY p.id
-       FOR UPDATE OF p`,
+      `SELECT *
+       FROM parties
+       WHERE code = $1
+       FOR UPDATE`,
       [code.toUpperCase()]
     );
     const party = partyResult.rows[0];
@@ -102,6 +100,13 @@ router.post('/join', partyLimiter, requireAuth, async (req: AuthRequest, res: Re
       return;
     }
 
+    // Lock existing member rows for this party to serialize membership checks/inserts.
+    const membersResult = await client.query(
+      `SELECT user_id FROM party_members WHERE party_id = $1 FOR UPDATE`,
+      [party.id]
+    );
+    const memberCount = membersResult.rowCount ?? membersResult.rows.length;
+
     // Reject if already a member (reconnect after page refresh, etc.)
     const alreadyMember = await client.query(
       `SELECT 1 FROM party_members WHERE party_id = $1 AND user_id = $2`,
@@ -115,7 +120,7 @@ router.post('/join', partyLimiter, requireAuth, async (req: AuthRequest, res: Re
     }
 
     // Reject if party is already full (2 members)
-    if (party.member_count >= 2) {
+    if (memberCount >= 2) {
       await client.query('ROLLBACK');
       res.status(409).json({ error: 'Party is full' });
       return;

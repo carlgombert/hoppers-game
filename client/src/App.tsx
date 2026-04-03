@@ -172,6 +172,7 @@ export default function App() {
   }
 
   function handleQuitGame() {
+    partySocket?.disconnect();
     setPlayingLevel(null);
     setCompletionTime(null);
     setPartyFinishTimes(new Map());

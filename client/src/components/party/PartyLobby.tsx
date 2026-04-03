@@ -100,6 +100,8 @@ export default function PartyLobby({ myLevels, onPartyReady }: Props) {
     });
 
     socket.on('party:ready', () => {
+      // Handoff ownership to App/GameCanvas; avoid disconnecting during PartyLobby unmount.
+      socketRef.current = null;
       onPartyReady({ socket, partyCode: code, level });
     });
 
