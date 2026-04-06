@@ -8,6 +8,10 @@ import { type Level } from './types/level';
 
 type NavId = 'build' | 'levels' | 'party' | 'settings';
 type ViewId = NavId | 'game';
+import LoginScreen from './components/auth/LoginScreen';
+import CreateAccountScreen from './components/auth/CreateAccountScreen';
+import { getAvatarSrc } from './components/auth/AvatarPicker';
+import { useAuth } from './auth/AuthContext';
 
 interface NavItem {
   id: NavId;
@@ -27,6 +31,8 @@ function navForView(view: ViewId): NavItem {
   return NAV_ITEMS.find((n) => n.id === view) ?? NAV_ITEMS[0];
 }
 
+type AuthView = 'login' | 'register';
+
 export default function App() {
   const [view, setView] = useState<ViewId>('build');
   const [levels, setLevels] = useState<Level[]>([]);
@@ -35,6 +41,26 @@ export default function App() {
 
   const activeNavId: NavId = view === 'game' ? 'levels' : view;
   const currentNav = navForView(view);
+  const { user, logout } = useAuth();
+  const [authView, setAuthView] = useState<AuthView>('login');
+  const [activeTab, setActiveTab] = useState<NavItem['id']>('play');
+
+  // ── Auth gate ─────────────────────────────────────────────
+  if (!user) {
+    if (authView === 'login') {
+      return <LoginScreen onSwitchToRegister={() => setAuthView('register')} />;
+    }
+    return <CreateAccountScreen onSwitchToLogin={() => setAuthView('login')} />;
+  }
+
+  // ── Authenticated shell ───────────────────────────────────
+  const navItems: NavItem[] = [
+    { id: 'play', label: 'Play Game', icon: 'game', content: 'game' },
+    { id: 'build', label: 'Level Editor', icon: 'editor', content: 'editor' },
+    { id: 'levels', label: 'My Levels', icon: 'levels', content: 'levels' },
+    { id: 'party', label: 'Party Lobby', icon: 'party', content: 'party' },
+    { id: 'settings', label: 'Settings', icon: 'settings', content: 'settings' },
+  ];
 
   function goToEditor(level?: Level) {
     setEditingLevel(level ?? null);
@@ -77,10 +103,18 @@ export default function App() {
         {/* User Profile Band */}
         <div className="xp-user-profile">
           <div className="xp-user-avatar">
-            <ChromeIcon variant="profile" className="xp-user-avatar-icon" />
+            {user.avatar_id ? (
+              <img
+                src={getAvatarSrc(user.avatar_id)}
+                alt={user.display_name}
+                className="xp-user-avatar-img"
+              />
+            ) : (
+              <ChromeIcon variant="profile" className="xp-user-avatar-icon" />
+            )}
           </div>
           <div className="xp-user-info">
-            <span className="xp-user-name">Player</span>
+            <span className="xp-user-name">{user.display_name}</span>
             <span className="xp-user-status">
               {levels.length} {levels.length === 1 ? 'level' : 'levels'} built
             </span>
