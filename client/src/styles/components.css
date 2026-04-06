@@ -1,0 +1,1404 @@
+/* ============================================================
+   Hoppers Component Skin
+   Tactile control styling for the Luna metallic shell.
+   ============================================================ */
+
+:root {
+  --xp-btn-blue-hi: #dbe4ff;
+  --xp-btn-blue-mid: #a9b7eb;
+  --xp-btn-blue-lo: #7686c4;
+  --xp-btn-blue-edge: #586689;
+  --xp-btn-danger-hi: #f4d7dc;
+  --xp-btn-danger-mid: #d88b98;
+  --xp-btn-danger-lo: #b35d6d;
+  --xp-btn-danger-edge: #7f4250;
+  --xp-btn-ghost-hi: #fbfcff;
+  --xp-btn-ghost-lo: #d4dcea;
+  --xp-btn-ghost-edge: #96a1b5;
+  --xp-chip-hi: #f8faff;
+  --xp-chip-lo: #e1e7f1;
+  --xp-chip-edge: #9ca7bc;
+  --xp-chip-shadow: rgba(7, 10, 19, 0.16);
+}
+
+/* ── Custom Scrollbars (Chrome-styled) ───────────────────── */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background:
+    linear-gradient(to right, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.02) 30%, rgba(0, 0, 0, 0.02) 70%, rgba(0, 0, 0, 0.08));
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.08)),
+    linear-gradient(to bottom, #8d96b0, #6a7389);
+  border-radius: 5px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0.12)),
+    linear-gradient(to bottom, #9aa3bc, #7a839a);
+}
+
+/* Dark-panel scrollbar variant */
+.dark::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.dark::-webkit-scrollbar-thumb {
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04)),
+    linear-gradient(to bottom, #4a5166, #3a4052);
+  border-color: rgba(0, 0, 0, 0.36);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #7a839a #2a2e3d;
+}
+
+/* ── Sidebar Modules (chrome band segments) ──────────────── */
+
+.xp-user-profile,
+.xp-task-group,
+.xp-sidebar-footer {
+  position: relative;
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0)),
+    linear-gradient(to bottom, rgba(31, 37, 54, 0.94), rgba(24, 29, 42, 0.92));
+}
+
+/* ── User Profile Band ───────────────────────────────────── */
+
+.xp-user-profile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 16px 16px;
+  /* Segmented seam: chrome rim at bottom */
+  border-bottom: 1px solid rgba(143, 125, 184, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.34),
+    0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.xp-user-profile::after,
+.xp-task-group::after,
+.xp-sidebar-footer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.xp-user-profile::after {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
+  opacity: 0.7;
+}
+
+/* ── User Avatar — Medallion Ring Housing ────────────────── */
+
+.xp-user-avatar {
+  width: 50px;
+  height: 50px;
+  flex: 0 0 50px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  /* Double ring: outer rim + inner rim */
+  border: 2px solid rgba(143, 125, 184, 0.48);
+  outline: 2px solid rgba(198, 200, 216, 0.28);
+  outline-offset: 1px;
+  background:
+    radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.52) 0%, rgba(255, 255, 255, 0) 32%),
+    radial-gradient(circle at 50% 60%, rgba(143, 125, 184, 0.18) 0%, rgba(143, 125, 184, 0) 54%),
+    linear-gradient(to bottom, #8d96b0 0%, #60697f 52%, #434b5f 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.34),
+    0 3px 10px rgba(0, 0, 0, 0.28),
+    0 0 0 5px rgba(31, 37, 54, 0.6);
+  font-size: 26px;
+  line-height: 1;
+}
+
+.xp-user-avatar-icon {
+  width: 28px;
+  height: 28px;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.3));
+}
+
+.xp-user-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.xp-user-name {
+  color: var(--color-text-inverse, #eef2fc);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.56);
+}
+
+.xp-user-status {
+  color: rgba(237, 242, 252, 0.8);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+/* ── Nav Menu Container ──────────────────────────────────── */
+
+.xp-nav-menu {
+  flex: 1;
+  min-height: 0;
+  padding: 12px 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+
+/* ── Pane Heading — Header Cap Strip ─────────────────────── */
+
+.xp-pane-heading {
+  position: relative;
+  margin: 4px 0 6px;
+  padding: 5px 8px 4px;
+  color: rgba(244, 247, 255, 0.82);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
+  /* Header cap strip background */
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.06) 0%,
+      rgba(255, 255, 255, 0.02) 50%,
+      rgba(0, 0, 0, 0.04) 100%
+    );
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom-color: rgba(0, 0, 0, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* Gloss band on top of header cap */
+.xp-pane-heading::before {
+  content: '';
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  top: 1px;
+  height: 50%;
+  border-radius: 5px 5px 0 0;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.06), transparent);
+}
+
+/* ── Navigation Buttons ──────────────────────────────────── */
+
+.xp-nav-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  padding: 11px 12px;
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  color: var(--color-text-inverse, #eef2fc);
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0)),
+    linear-gradient(to bottom, rgba(53, 58, 77, 0.96), rgba(39, 43, 59, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.32),
+    0 1px 2px rgba(0, 0, 0, 0.34);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  letter-spacing: 0.1px;
+  position: relative;
+}
+
+/* Gloss pass on nav button */
+.xp-nav-btn::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: 8px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0));
+  opacity: 0.55;
+}
+
+.xp-nav-btn:hover {
+  border-color: rgba(214, 219, 236, 0.22);
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
+    linear-gradient(to bottom, rgba(64, 70, 91, 0.98), rgba(46, 51, 69, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.28),
+    0 3px 8px rgba(0, 0, 0, 0.32),
+    0 0 0 1px rgba(193, 187, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+.xp-nav-btn:active {
+  transform: translateY(0);
+  background:
+    linear-gradient(to bottom, rgba(32, 36, 49, 0.98), rgba(44, 49, 64, 0.98));
+  box-shadow:
+    inset 0 2px 4px rgba(5, 7, 13, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 1px 1px rgba(0, 0, 0, 0.3);
+}
+
+/* Focus ring */
+.xp-nav-btn:focus-visible,
+.xp-task-chip:focus-visible,
+.xp-start-strip:focus-visible,
+.xp-orb-btn:focus-visible,
+.xp-btn:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+    0 0 0 2px rgba(238, 233, 255, 0.95),
+    0 0 0 4px rgba(170, 157, 255, 0.84);
+}
+
+/* Active nav state — orchid glow */
+.xp-nav-btn.active {
+  border-color: rgba(205, 200, 255, 0.42);
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0)),
+    linear-gradient(to bottom, rgba(124, 112, 166, 0.98), rgba(82, 88, 120, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.36),
+    0 4px 12px rgba(0, 0, 0, 0.34),
+    0 0 0 1px rgba(199, 190, 250, 0.28),
+    0 0 16px rgba(151, 136, 242, 0.16);
+}
+
+.xp-nav-btn.active::before {
+  opacity: 0.82;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0));
+}
+
+/* Active state orchid indicator bar */
+.xp-nav-btn.active::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 20%;
+  bottom: 20%;
+  width: 3px;
+  border-radius: 2px;
+  background: linear-gradient(to bottom, var(--xp-orchid-soft, #b9add6), var(--xp-orchid, #8f7db8));
+  box-shadow: 0 0 8px rgba(143, 125, 184, 0.5);
+  pointer-events: none;
+}
+
+.xp-nav-icon {
+  position: relative;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+  color: var(--xp-silver-glow, #d8dae8);
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.4));
+}
+
+.xp-nav-label {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* ── Task Groups — Framed Pane Modules ───────────────────── */
+
+.xp-task-group {
+  margin-top: 8px;
+  padding: 2px 8px 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  /* Segmented seam at top */
+  border-top-color: rgba(143, 125, 184, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.25),
+    0 1px 2px rgba(0, 0, 0, 0.22);
+}
+
+.xp-task-group::after {
+  border-radius: inherit;
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 32%),
+    linear-gradient(to bottom, rgba(20, 24, 35, 0.36), rgba(20, 24, 35, 0.12));
+  pointer-events: none;
+}
+
+.xp-task-group .xp-pane-heading {
+  margin-top: 4px;
+  margin-bottom: 6px;
+}
+
+/* ── Task Chips (with chevron affordance) ────────────────── */
+
+.xp-task-chip,
+.xp-start-strip,
+.xp-orb-btn,
+.xp-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  font: inherit;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.xp-task-chip {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin-top: 6px;
+  padding: 9px 11px;
+  border-color: rgba(165, 173, 193, 0.88);
+  border-radius: 11px;
+  color: var(--color-text-primary, #101521);
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0)),
+    linear-gradient(to bottom, var(--xp-chip-hi), var(--xp-chip-lo));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(102, 111, 131, 0.36),
+    0 1px 2px var(--xp-chip-shadow);
+  text-align: left;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Chevron affordance on task chips */
+.xp-task-chip::after {
+  content: '';
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: 8px;
+  width: 6px;
+  height: 10px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='10' viewBox='0 0 6 10' fill='none'%3E%3Cpath d='M1 1l4 4-4 4' stroke='%236a7389' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.56;
+}
+
+.xp-task-chip:hover {
+  border-color: rgba(143, 155, 179, 0.96);
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0)),
+    linear-gradient(to bottom, #f8fbff, #dde4ef);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    inset 0 -1px 0 rgba(101, 111, 131, 0.42),
+    0 2px 5px rgba(7, 10, 19, 0.2),
+    0 0 0 1px rgba(151, 136, 242, 0.12);
+  transform: translateY(-1px);
+}
+
+.xp-task-chip:hover::after {
+  opacity: 0.82;
+}
+
+.xp-task-chip:active {
+  transform: translateY(0);
+  background:
+    linear-gradient(to bottom, rgba(236, 241, 249, 0.92), rgba(219, 226, 237, 0.98));
+  box-shadow:
+    inset 0 2px 5px rgba(8, 10, 19, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.76),
+    0 1px 1px rgba(7, 10, 19, 0.16);
+}
+
+/* ── Sidebar Footer — Split Bar Frame ────────────────────── */
+
+.xp-sidebar-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0;
+  padding: 12px 12px 14px;
+  /* Top seam separator */
+  border-top: 1px solid rgba(143, 125, 184, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.26);
+}
+
+/* Capsule "All Programs" — polished medallion treatment */
+.xp-start-strip {
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  padding: 7px 16px 8px;
+  border-color: rgba(143, 155, 179, 0.9);
+  border-radius: 999px;
+  color: var(--color-text-primary, #101521);
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0)),
+    linear-gradient(to bottom, #f7f9fe 0%, #d9e0ee 50%, #c8d0e2 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    inset 0 -2px 0 rgba(95, 104, 124, 0.36),
+    0 2px 4px rgba(7, 10, 19, 0.22);
+  text-align: left;
+  font-weight: 700;
+  letter-spacing: 0.1px;
+}
+
+/* Gloss crest on capsule */
+.xp-start-strip::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 1px;
+  height: 45%;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0));
+}
+
+.xp-start-strip:hover {
+  transform: translateY(-1px);
+  border-color: rgba(131, 145, 173, 0.98);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    inset 0 -2px 0 rgba(91, 100, 121, 0.38),
+    0 4px 10px rgba(7, 10, 19, 0.28),
+    0 0 0 1px rgba(170, 157, 255, 0.12);
+}
+
+.xp-start-strip:active {
+  transform: translateY(0);
+  box-shadow:
+    inset 0 2px 5px rgba(7, 10, 19, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 1px 1px rgba(7, 10, 19, 0.18);
+}
+
+/* Split bar divider between capsule and orb */
+.xp-footer-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 10px;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.02),
+    rgba(255, 255, 255, 0.14) 30%,
+    rgba(255, 255, 255, 0.14) 70%,
+    rgba(255, 255, 255, 0.02)
+  );
+  box-shadow: 1px 0 0 rgba(0, 0, 0, 0.22);
+}
+
+/* ── Orb Button — Polished Medallion ─────────────────────── */
+
+.xp-orb-btn {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border-color: rgba(143, 125, 184, 0.62);
+  color: var(--color-text-primary, #101521);
+  background:
+    /* Bright crest highlight */
+    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 26%),
+    /* Orchid medallion tint */
+    radial-gradient(circle at 50% 56%, rgba(143, 125, 184, 0.22) 0%, rgba(143, 125, 184, 0) 58%),
+    /* Silver body */
+    linear-gradient(to bottom, #f7f9fe 0%, #d0d8e8 100%);
+  box-shadow:
+    /* Inner crest */
+    inset 0 2px 0 rgba(255, 255, 255, 0.98),
+    /* Inner compression */
+    inset 0 -2px 0 rgba(94, 103, 122, 0.44),
+    /* Cast shadow */
+    0 2px 6px rgba(7, 10, 19, 0.28),
+    /* Rim ring */
+    0 0 0 2px rgba(198, 200, 216, 0.28);
+  font-size: 13px;
+}
+
+.xp-orb-btn:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.98),
+    inset 0 -2px 0 rgba(94, 103, 122, 0.46),
+    0 4px 10px rgba(7, 10, 19, 0.3),
+    0 0 14px rgba(151, 136, 242, 0.24),
+    0 0 0 2px rgba(198, 200, 216, 0.36);
+}
+
+.xp-orb-btn:active {
+  transform: translateY(0);
+  box-shadow:
+    inset 0 2px 5px rgba(7, 10, 19, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    0 1px 1px rgba(7, 10, 19, 0.18),
+    0 0 0 2px rgba(198, 200, 216, 0.2);
+}
+
+/* ── Titlebar Controls ───────────────────────────────────── */
+
+.xp-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+
+.xp-btn {
+  min-height: 30px;
+  padding: 7px 14px 8px;
+  border-radius: 12px;
+  color: var(--color-text-primary, #101521);
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0)),
+    linear-gradient(to bottom, var(--xp-btn-blue-hi), var(--xp-btn-blue-mid) 52%, var(--xp-btn-blue-lo));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    inset 0 -1px 0 rgba(67, 79, 109, 0.38),
+    0 1px 2px rgba(7, 10, 19, 0.28);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.48);
+  font-weight: 700;
+  letter-spacing: 0.1px;
+}
+
+/* Gloss band on buttons */
+.xp-btn::before {
+  content: '';
+  position: absolute;
+  inset: 1px 1px auto 1px;
+  height: 45%;
+  border-radius: inherit;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+
+.xp-btn:hover {
+  border-color: rgba(120, 134, 165, 0.96);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.99),
+    inset 0 -1px 0 rgba(67, 79, 109, 0.4),
+    0 3px 8px rgba(7, 10, 19, 0.26),
+    0 0 0 1px rgba(170, 157, 255, 0.14);
+}
+
+.xp-btn:active {
+  transform: translateY(0);
+  box-shadow:
+    inset 0 2px 5px rgba(7, 10, 19, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.74),
+    0 1px 1px rgba(7, 10, 19, 0.16);
+}
+
+.xp-btn.ghost {
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0)),
+    linear-gradient(to bottom, var(--xp-btn-ghost-hi), var(--xp-btn-ghost-lo));
+  border-color: var(--xp-btn-ghost-edge);
+  color: #283247;
+}
+
+.xp-btn.ghost::before {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0));
+}
+
+.xp-btn.danger {
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0)),
+    linear-gradient(to bottom, var(--xp-btn-danger-hi), var(--xp-btn-danger-mid) 52%, var(--xp-btn-danger-lo));
+  border-color: var(--xp-btn-danger-edge);
+  color: #4f1924;
+}
+
+.xp-btn.danger::before {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0));
+}
+
+/* ── Placeholder State (framed inset) ────────────────────── */
+
+.xp-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  height: 100%;
+  padding: 32px;
+  color: rgba(42, 43, 57, 0.7);
+  font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Framed inset well for placeholder */
+.xp-placeholder::before {
+  content: '';
+  position: absolute;
+  inset: 16px;
+  border: 1px solid rgba(154, 163, 184, 0.38);
+  border-radius: 8px;
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.06),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgba(154, 163, 184, 0.03) 0,
+      rgba(154, 163, 184, 0.03) 1px,
+      transparent 1px,
+      transparent 6px
+    );
+}
+
+.xp-placeholder-icon {
+  width: 72px;
+  height: 72px;
+  opacity: 0.38;
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.12));
+}
+
+.xp-placeholder span {
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* ── Titlebar Icon ───────────────────────────────────────── */
+
+.xp-titlebar-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--xp-silver-glow, #d8dae8);
+}
+
+.xp-orb-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--color-text-primary, #101521);
+}
+
+.xp-nav-chevron-icon {
+  width: 14px;
+  height: 14px;
+  color: rgba(240, 244, 255, 0.72);
+}
+
+/* ── Icon Rendering Base ─────────────────────────────────── */
+
+.xp-nav-icon,
+.xp-titlebar-icon,
+.xp-placeholder-icon,
+.xp-user-avatar-icon,
+.xp-orb-icon,
+.xp-nav-chevron-icon {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.xp-icon-shell {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.xp-icon-shell .xp-icon-fill {
+  fill: currentColor;
+  stroke: none;
+}
+
+.xp-icon-shell .xp-icon-accent {
+  color: var(--xp-orchid, #8f7db8);
+}
+
+.xp-icon-shell .xp-icon-dim {
+  opacity: 0.55;
+}
+
+/* ── Form Controls ───────────────────────────────────────── */
+
+input,
+textarea,
+select {
+  appearance: none;
+  color: var(--color-text-primary, #101521);
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0)),
+    linear-gradient(to bottom, #f5f8fd, #e5ebf6);
+  border: 1px solid #98a2b6;
+  border-radius: 9px;
+  box-shadow:
+    inset 0 1px 2px rgba(7, 9, 17, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  padding: 8px 10px;
+  font: inherit;
+}
+
+input:hover,
+textarea:hover,
+select:hover {
+  border-color: #8792a7;
+  box-shadow:
+    inset 0 1px 2px rgba(7, 9, 17, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    0 0 0 1px rgba(151, 136, 242, 0.1);
+}
+
+input:disabled,
+textarea:disabled,
+select:disabled,
+button:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+  filter: saturate(0.7);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(74, 86, 111, 0.72);
+}
+
+select {
+  padding-right: 28px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #55627b 50%),
+    linear-gradient(135deg, #55627b 50%, transparent 50%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0));
+  background-position:
+    calc(100% - 16px) calc(50% - 2px),
+    calc(100% - 11px) calc(50% - 2px),
+    0 0;
+  background-size: 5px 5px, 5px 5px, 100% 100%;
+  background-repeat: no-repeat;
+}
+
+textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+/* Smaller titlebar buttons */
+.xp-titlebar .xp-btn,
+.xp-titlebar button,
+.xp-titlebar input[type='button'],
+.xp-titlebar input[type='submit'] {
+  min-height: 24px;
+  padding: 5px 11px 6px;
+  border-radius: 9px;
+  font-size: 11px;
+}
+
+.xp-titlebar .xp-btn {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(61, 71, 97, 0.34),
+    0 1px 1px rgba(7, 10, 19, 0.22);
+}
+
+.xp-titlebar .xp-btn:hover,
+.xp-titlebar button:hover {
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xp-nav-btn,
+  .xp-task-chip,
+  .xp-start-strip,
+  .xp-orb-btn,
+  .xp-btn,
+  input,
+  textarea,
+  select {
+    transition: none;
+  }
+
+  .xp-nav-btn:hover,
+  .xp-task-chip:hover,
+  .xp-start-strip:hover,
+  .xp-orb-btn:hover,
+  .xp-btn:hover {
+    transform: none;
+  }
+}
+
+/* ============================================================
+   Level Editor
+   Canvas painter, palette rail, toolbar chrome.
+   ============================================================ */
+
+/* ── Editor overall layout ──────────────────────────────── */
+
+.xp-editor-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── Toolbar ────────────────────────────────────────────── */
+
+.xp-editor-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.02)),
+    linear-gradient(to bottom, #2c3044, #22283a);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.xp-editor-title-input {
+  flex: 1;
+  min-width: 0;
+  max-width: 260px;
+  height: 26px;
+  padding: 0 8px;
+  font-family: Tahoma, 'Segoe UI', Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--xp-text-on-dark, #f1f2f8);
+  background:
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.18));
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+  outline: none;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.xp-editor-title-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+  font-weight: 400;
+}
+
+.xp-editor-title-input:focus {
+  border-color: var(--xp-orchid, #8f7db8);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(143, 125, 184, 0.4);
+}
+
+.xp-editor-toolbar-spacer {
+  flex: 1;
+}
+
+.xp-editor-toolbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.xp-editor-flag-badge {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  font-family: Tahoma, Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+}
+
+.xp-editor-flag-badge.ok {
+  background: linear-gradient(to bottom, #3a9440, #287030);
+  color: #d0f0d0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.xp-editor-flag-badge.missing {
+  background: linear-gradient(to bottom, #604040, #482828);
+  color: rgba(255, 200, 200, 0.6);
+}
+
+.xp-editor-tile-count {
+  font-family: Tahoma, Arial, sans-serif;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.45);
+  padding: 0 6px;
+}
+
+/* ── Publish error banner ───────────────────────────────── */
+
+.xp-editor-error {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  font-family: Tahoma, Arial, sans-serif;
+  font-size: 11px;
+  color: #f4c0c8;
+  background:
+    linear-gradient(to right, rgba(160, 40, 60, 0.5), rgba(120, 30, 45, 0.4));
+  border-bottom: 1px solid rgba(160, 60, 80, 0.5);
+}
+
+/* ── Editor body (palette + canvas + info rail) ─────────── */
+
+.xp-editor-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Palette rail ───────────────────────────────────────── */
+
+.xp-editor-palette-rail {
+  flex-shrink: 0;
+  width: 168px;
+  overflow-y: auto;
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
+    linear-gradient(to bottom, #1e2236, #181c2c);
+  border-right: 1px solid rgba(0, 0, 0, 0.45);
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.05);
+}
+
+.xp-palette {
+  padding: 8px 0 16px;
+}
+
+.xp-palette-group {
+  padding: 0 0 4px;
+  position: relative;
+}
+
+.xp-palette-group + .xp-palette-group {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
+.xp-palette-tile {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 5px 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 80ms;
+}
+
+.xp-palette-tile:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.xp-palette-tile.active {
+  background:
+    linear-gradient(to right, rgba(143, 125, 184, 0.25), rgba(143, 125, 184, 0.08));
+  box-shadow: inset 2px 0 0 var(--xp-orchid, #8f7db8);
+}
+
+.xp-palette-tile--portal-pending {
+  animation: xp-portal-pulse 1s ease-in-out infinite;
+}
+
+@keyframes xp-portal-pulse {
+  0%, 100% { background: linear-gradient(to right, rgba(32, 168, 152, 0.2), transparent); }
+  50%       { background: linear-gradient(to right, rgba(32, 168, 152, 0.4), rgba(32, 168, 152, 0.1)); }
+}
+
+.xp-palette-swatch {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.xp-palette-swatch--eraser {
+  background:
+    linear-gradient(135deg, #888 25%, transparent 25%) -4px 0,
+    linear-gradient(225deg, #888 25%, transparent 25%) -4px 0,
+    linear-gradient(315deg, #888 25%, transparent 25%),
+    linear-gradient(45deg, #888 25%, transparent 25%);
+  background-size: 8px 8px;
+  background-color: #555;
+}
+
+.xp-palette-label {
+  font-family: Tahoma, Arial, sans-serif;
+  font-size: 11px;
+  color: var(--xp-text-on-dark, #f1f2f8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xp-palette-portal-hint {
+  color: rgba(80, 216, 204, 0.75);
+  font-size: 10px;
+}
+
+/* ── Canvas scroll area ─────────────────────────────────── */
+
+.xp-editor-canvas-area {
+  flex: 1;
+  overflow: auto;
+  padding: 20px;
+  background: #0c0f18;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.xp-tile-canvas {
+  display: block;
+  cursor: crosshair;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 4px 16px rgba(0, 0, 0, 0.5);
+  image-rendering: pixelated;
+}
+
+/* ── Info / legend rail ─────────────────────────────────── */
+
+.xp-editor-info-rail {
+  flex-shrink: 0;
+  width: 160px;
+  padding: 10px;
+  overflow-y: auto;
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0)),
+    linear-gradient(to bottom, #1e2236, #181c2c);
+  border-left: 1px solid rgba(0, 0, 0, 0.45);
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.04);
+}
+
+.xp-editor-desc-input {
+  width: 100%;
+  padding: 6px 8px;
+  font-family: Tahoma, Arial, sans-serif;
+  font-size: 11px;
+  color: var(--xp-text-on-dark, #f1f2f8);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: 3px;
+  resize: vertical;
+  outline: none;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+}
+
+.xp-editor-desc-input::placeholder {
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.xp-editor-desc-input:focus {
+  border-color: var(--xp-orchid, #8f7db8);
+}
+
+.xp-editor-legend {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.xp-editor-legend li {
+  font-family: Tahoma, Arial, sans-serif;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.45);
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  line-height: 1.4;
+}
+
+.xp-editor-legend li strong {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* ============================================================
+   My Levels
+   Level library with cards and actions.
+   ============================================================ */
+
+.xp-levels-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── Levels toolbar ─────────────────────────────────────── */
+
+.xp-levels-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0)),
+    linear-gradient(to bottom, #dde0ee, #c8cad8);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 1px 0 rgba(0, 0, 0, 0.08);
+}
+
+.xp-levels-count {
+  font-family: Tahoma, Arial, sans-serif;
+  font-size: 11px;
+  color: var(--xp-text-muted, #67697d);
+}
+
+.xp-levels-toolbar-spacer {
+  flex: 1;
+}
+
+/* ── Empty state ────────────────────────────────────────── */
+
+.xp-levels-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px;
+  text-align: center;
+}
+
+.xp-levels-empty-icon {
+  opacity: 0.3;
+}
+
+.xp-levels-empty-title {
+  margin: 0;
+  font-family: Tahoma, Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--xp-text-on-light, #2a2b39);
+}
+
+.xp-levels-empty-sub {
+  margin: 0;
+  font-family: Tahoma, Arial, sans-serif;
+  font-size: 11px;
+  color: var(--xp-text-muted, #67697d);
+  max-width: 280px;
+  line-height: 1.5;
+}
+
+/* ── Level card grid ────────────────────────────────────── */
+
+.xp-levels-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-content: flex-start;
+}
+
+/* ── Individual level card ──────────────────────────────── */
+
+.xp-level-card {
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0)),
+    linear-gradient(to bottom, #edeef6, #d8dae6);
+  border: 1px solid rgba(0, 0, 0, 0.28);
+  border-radius: 6px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 3px 8px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  transition: box-shadow 100ms, transform 80ms;
+}
+
+.xp-level-card:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 6px 16px rgba(0, 0, 0, 0.26);
+  transform: translateY(-1px);
+}
+
+/* Thumbnail / preview strip */
+.xp-level-card-thumb {
+  height: 72px;
+  background:
+    linear-gradient(to bottom right, #1a2038, #0e1424);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 6px 8px;
+  position: relative;
+}
+
+.xp-level-card-tile-count {
+  font-family: Tahoma, Arial, sans-serif;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Published / Draft badge */
+.xp-level-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: Tahoma, Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+}
+
+.xp-level-badge.published {
+  background: linear-gradient(to bottom, #3a9440, #287030);
+  color: #c8f0c8;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.xp-level-badge.draft {
+  background: linear-gradient(to bottom, #686880, #505068);
+  color: rgba(220, 220, 240, 0.8);
+}
+
+/* Card body */
+.xp-level-card-body {
+  flex: 1;
+  padding: 8px 10px 6px;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.xp-level-card-title {
+  font-family: Tahoma, Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--xp-text-on-light, #2a2b39);
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xp-level-card-desc {
+  font-family: Tahoma, Arial, sans-serif;
+  font-size: 10px;
+  color: var(--xp-text-muted, #67697d);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.xp-level-card-meta {
+  font-family: Tahoma, Arial, sans-serif;
+  font-size: 10px;
+  color: var(--xp-text-muted, #67697d);
+}
+
+/* Card action strip */
+.xp-level-card-actions {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  background:
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0));
+}
+
+.xp-level-play-btn {
+  flex: 1;
+}
+
+/* ── Primary button variant ─────────────────────────────── */
+
+.xp-btn.primary {
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.04) 40%),
+    linear-gradient(to bottom, #6a7ab4, #505882);
+  border-color: #3c4468;
+  color: #e8ecff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.28),
+    0 2px 4px rgba(0, 0, 0, 0.32);
+}
+
+.xp-btn.primary:hover {
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.36) 0%, rgba(255, 255, 255, 0.08) 40%),
+    linear-gradient(to bottom, #7a8cc8, #606898);
+}
+
+.xp-btn.primary:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.08);
+}
