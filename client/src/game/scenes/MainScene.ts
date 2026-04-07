@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { type Tile, TILE_META } from '../../types/level';
+import { DEMO_LEVEL_TILES } from '../demoLevel';
 
 const TILE = 32;
 const PLAYER_W = 24;
@@ -40,12 +41,14 @@ export class MainScene extends Phaser.Scene {
   private onLadder = false;
   private isOnIce = false;
 
-  private portalDestMap = new Map<string, { x: number; y: number }>();
+  private portalPositions = new Map<string, Array<{ x: number; y: number }>>();
   private portalCooldown = false;
 
   private startTime = 0;
   private timerText!: Phaser.GameObjects.Text;
   private finished = false;
+
+  private flagStartFound = false;
 
   private fallingLandCrumbling = new Set<Phaser.Physics.Arcade.Image>();
 
@@ -61,7 +64,9 @@ export class MainScene extends Phaser.Scene {
     this.portalCooldown = false;
     this.onLadder = false;
     this.isOnIce = false;
+    this.flagStartFound = false;
     this.fallingLandCrumbling.clear();
+    this.portalPositions.clear();
     this.startTime = this.time.now;
 
     const { width, height } = this.scale;
@@ -84,8 +89,14 @@ export class MainScene extends Phaser.Scene {
 
     if (tileData.length > 0) {
       this.buildFromTileData(tileData);
+      // If tile data was provided but no flag_start tile was found, show a visible error
+      if (!this.flagStartFound) {
+        this.showNoStartFlagError(width, height);
+        return;
+      }
     } else {
-      this.buildDefaultLevel(width, height);
+      // No tile data supplied — load the built-in demo level
+      this.buildFromTileData(DEMO_LEVEL_TILES);
     }
 
     if (!this.textures.exists('player')) {
@@ -110,10 +121,12 @@ export class MainScene extends Phaser.Scene {
     this.player.setBounce(0);
     const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
     playerBody.setMaxVelocityX(PLAYER_SPEED);
+    playerBody.setMaxVelocityY(800); // prevent tunnelling through 32px platforms
 
     this.physics.add.collider(this.player, this.platforms);
     this.physics.add.collider(this.player, this.fallingLandGroup, this.onFallingLandContact, undefined, this);
     this.physics.add.collider(this.player, this.movingBoxGroup);
+    this.physics.add.collider(this.movingBoxGroup, this.platforms); // needed for blocked.left/right reversal
 
     this.physics.add.overlap(this.player, this.hazardGroup, () => this.killPlayer(), undefined, this);
     this.physics.add.overlap(this.player, this.checkpointGroup, this.onCheckpoint, undefined, this);
@@ -152,16 +165,23 @@ export class MainScene extends Phaser.Scene {
   private buildFromTileData(tiles: Tile[]) {
     const generatedTextures = new Set<string>();
 
+    // First pass: collect portal positions indexed by linkedPortalId (array per ID for bidirectional pairs)
     for (const tile of tiles) {
       if (tile.type === 'portal' && tile.linkedPortalId) {
-        this.portalDestMap.set(tile.linkedPortalId, {
-          x: tile.x * TILE + TILE / 2,
-          y: tile.y * TILE + TILE / 2,
-        });
+        const pos = { x: tile.x * TILE + TILE / 2, y: tile.y * TILE + TILE / 2 };
+        const list = this.portalPositions.get(tile.linkedPortalId) ?? [];
+        list.push(pos);
+        this.portalPositions.set(tile.linkedPortalId, list);
       }
     }
 
     for (const tile of tiles) {
+      // Gracefully skip unknown tile types with a console warning
+      if (!(tile.type in TILE_META)) {
+        console.warn(`[MainScene] Unknown tile type "${tile.type}" at (${tile.x}, ${tile.y}) — skipped.`);
+        continue;
+      }
+
       const meta = TILE_META[tile.type];
       const px = tile.x * TILE;
       const py = tile.y * TILE;
@@ -189,12 +209,9 @@ export class MainScene extends Phaser.Scene {
         }
 
         case 'ladder': {
-          const img = this.platforms.create(cx, cy, textureKey) as Phaser.Physics.Arcade.Image;
-          img.setDisplaySize(TILE, TILE);
-          img.refreshBody();
+          // Ladders are pass-through (not solid). Detection via ladderGroup for gravity suspension + climbing.
           const ladderSensor = this.ladderGroup.create(cx, cy, textureKey) as Phaser.Physics.Arcade.Image;
           ladderSensor.setDisplaySize(TILE, TILE);
-          ladderSensor.setAlpha(0);
           ladderSensor.refreshBody();
           break;
         }
@@ -246,6 +263,8 @@ export class MainScene extends Phaser.Scene {
           const portal = this.portalGroup.create(cx, cy, textureKey) as Phaser.Physics.Arcade.Image;
           portal.setDisplaySize(TILE, TILE);
           portal.setData('linkedPortalId', tile.linkedPortalId ?? '');
+          portal.setData('portalX', cx);
+          portal.setData('portalY', cy);
           portal.setAlpha(0);
           portal.refreshBody();
           break;
@@ -278,6 +297,7 @@ export class MainScene extends Phaser.Scene {
         }
 
         case 'flag_start': {
+          this.flagStartFound = true;
           this.add.image(px, py, textureKey).setOrigin(0, 0);
           this.add.text(cx, cy, 'S', {
             fontFamily: 'Tahoma, Arial', fontSize: '14px', fontStyle: 'bold', color: '#fff',
@@ -291,6 +311,30 @@ export class MainScene extends Phaser.Scene {
           break;
       }
     }
+  }
+
+  private showNoStartFlagError(width: number, height: number) {
+    // Halt the update loop so it never touches uninitialised fields
+    this.finished = true;
+    this.add
+      .rectangle(0, 0, width, height, 0x1a0000, 0.85)
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(20);
+    this.add
+      .text(width / 2, height / 2 - 24, '⚠ Level Error', {
+        fontFamily: 'Tahoma, Arial', fontSize: '28px', fontStyle: 'bold', color: '#ff4444',
+      })
+      .setOrigin(0.5, 0.5)
+      .setScrollFactor(0)
+      .setDepth(21);
+    this.add
+      .text(width / 2, height / 2 + 16, 'This level has no Start Flag.\nPlease edit the level and add a flag_start tile.', {
+        fontFamily: 'Tahoma, Arial', fontSize: '14px', color: '#ffaaaa', align: 'center',
+      })
+      .setOrigin(0.5, 0)
+      .setScrollFactor(0)
+      .setDepth(21);
   }
 
   private drawTileGfx(
@@ -325,31 +369,6 @@ export class MainScene extends Phaser.Scene {
       gfx.lineStyle(2, 0xff4466, 0.8);
       gfx.lineBetween(0, TILE / 2, TILE, TILE / 2);
     }
-  }
-
-  private buildDefaultLevel(width: number, height: number) {
-    this.buildPlatform(0, height - TILE, Math.ceil(width / TILE));
-    this.buildPlatform(3, height - TILE * 5, 5);
-    this.buildPlatform(10, height - TILE * 9, 4);
-    this.buildPlatform(6, height - TILE * 13, 3);
-    this.spawnX = TILE * 2;
-    this.spawnY = height - TILE * 3;
-  }
-
-  private buildPlatform(col: number, y: number, count: number) {
-    const key = `plat_${col}_${Math.round(y)}_${count}`;
-    if (!this.textures.exists(key)) {
-      const gfx = this.make.graphics({ x: 0, y: 0 });
-      gfx.fillStyle(0x4a7fc8, 1);
-      gfx.fillRect(0, 0, TILE * count, TILE);
-      gfx.lineStyle(1, 0x8ab4e4, 0.7);
-      gfx.lineBetween(1, 1, TILE * count - 1, 1);
-      gfx.generateTexture(key, TILE * count, TILE);
-      gfx.destroy();
-    }
-    const img = this.platforms.create(col * TILE, y, key) as Phaser.Physics.Arcade.Image;
-    img.setOrigin(0, 0);
-    img.refreshBody();
   }
 
   update() {
@@ -402,11 +421,11 @@ export class MainScene extends Phaser.Scene {
     this.movingBoxGroup.getChildren().forEach((child) => {
       const box = child as Phaser.Physics.Arcade.Image;
       const boxBody = box.body as Phaser.Physics.Arcade.Body;
-      if (boxBody.blocked.left || boxBody.blocked.right) {
-        boxBody.setVelocityX(-boxBody.velocity.x);
-      }
+      // Reverse direction on wall collision OR world-bounds edge — but flip only once per frame
+      const hitWall = boxBody.blocked.left || boxBody.blocked.right;
       const { width } = this.scale;
-      if (box.x < TILE || box.x > width - TILE) {
+      const hitBounds = box.x < TILE || box.x > width - TILE;
+      if (hitWall || hitBounds) {
         boxBody.setVelocityX(-boxBody.velocity.x);
       }
     });
@@ -557,8 +576,15 @@ export class MainScene extends Phaser.Scene {
     const linkedId = portal.getData('linkedPortalId') as string;
     if (!linkedId) return;
 
-    const dest = this.portalDestMap.get(linkedId);
-    if (!dest) return;
+    const positions = this.portalPositions.get(linkedId);
+    // Require at least two portals with this ID to form a pair
+    if (!positions || positions.length < 2) return;
+
+    // Find the OTHER portal position (not the one the player is currently on)
+    const myX = portal.getData('portalX') as number;
+    const myY = portal.getData('portalY') as number;
+    const dest = positions.find((p) => p.x !== myX || p.y !== myY);
+    if (!dest) return; // both portals are at the same position — no-op
 
     this.portalCooldown = true;
     this.player.setPosition(dest.x, dest.y - TILE / 2);

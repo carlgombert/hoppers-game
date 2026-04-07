@@ -35,7 +35,8 @@ export default function GameCanvas({
       if (levelId) {
         try {
           const save = await fetchSave(levelId);
-          if (save?.checkpoint_state) {
+          // Only resume at a position if both x and y are present (a real checkpoint, not a completion save)
+          if (save?.checkpoint_state?.x !== undefined && save.checkpoint_state.y !== undefined) {
             savedCheckpoint = {
               x: save.checkpoint_state.x,
               y: save.checkpoint_state.y,
@@ -87,6 +88,10 @@ export default function GameCanvas({
 
       // Completion callback — called by scene when player reaches the finish flag
       game.registry.set('onComplete', (elapsedMs: number) => {
+        // POST elapsed time to server (best-effort)
+        if (levelId) {
+          postSave(levelId, { completed: true, elapsed_ms: elapsedMs }).catch(() => {});
+        }
         if (mounted && onComplete) onComplete(elapsedMs);
       });
     }

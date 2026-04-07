@@ -35,7 +35,7 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/mine', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const result = await db.query(
-      `SELECT id, title, description, published, thumbnail, created_at, updated_at
+      `SELECT id, title, description, tile_data, published, thumbnail, created_at, updated_at
        FROM levels WHERE owner_id = $1 ORDER BY updated_at DESC`,
       [req.userId]
     );
