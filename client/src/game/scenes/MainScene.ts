@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { type Socket } from 'socket.io-client';
 import { type Tile, TILE_META } from '../../types/level';
 import { DEMO_LEVEL_TILES } from '../demoLevel';
 
@@ -52,6 +53,12 @@ export class MainScene extends Phaser.Scene {
 
   private fallingLandCrumbling = new Set<Phaser.Physics.Arcade.Image>();
 
+  // ── Multiplayer ghost sprites ──────────────────────────────────────────────
+  private socket: Socket | null = null;
+  private partyCode: string | null = null;
+  private ghostSprites = new Map<string, Phaser.GameObjects.Rectangle>();
+  private moveEmitCounter = 0;
+
   constructor() {
     super({ key: 'MainScene' });
   }
@@ -68,6 +75,16 @@ export class MainScene extends Phaser.Scene {
     this.fallingLandCrumbling.clear();
     this.portalPositions.clear();
     this.startTime = this.time.now;
+
+    // Multiplayer setup
+    this.ghostSprites.clear();
+    this.moveEmitCounter = 0;
+    this.socket = this.registry.get('socket') as Socket | null ?? null;
+    this.partyCode = this.registry.get('partyCode') as string | null ?? null;
+
+    if (this.socket && this.partyCode) {
+      this.registerSocketListeners();
+    }
 
     const { width, height } = this.scale;
     const tileData: Tile[] = this.registry.get('tileData') ?? [];
@@ -107,6 +124,16 @@ export class MainScene extends Phaser.Scene {
       gfx.fillCircle(PLAYER_W / 2, 8, 7);
       gfx.generateTexture('player', PLAYER_W, PLAYER_H);
       gfx.destroy();
+    }
+
+    if (!this.textures.exists('ghost')) {
+      const gg = this.make.graphics({ x: 0, y: 0 });
+      gg.fillStyle(0xb9add6, 1);
+      gg.fillRoundedRect(0, 0, PLAYER_W, PLAYER_H, 4);
+      gg.fillStyle(0xd4c8f0, 1);
+      gg.fillCircle(PLAYER_W / 2, 8, 7);
+      gg.generateTexture('ghost', PLAYER_W, PLAYER_H);
+      gg.destroy();
     }
 
     const startX = savedCheckpoint?.x ?? this.spawnX;
@@ -380,6 +407,19 @@ export class MainScene extends Phaser.Scene {
     const sec = totalSec % 60;
     this.timerText.setText(`${min}:${sec.toString().padStart(2, '0')}`);
 
+    // Emit position to party at ~20 fps (every 3 frames at 60fps)
+    if (this.socket && this.partyCode) {
+      this.moveEmitCounter++;
+      if (this.moveEmitCounter >= 3) {
+        this.moveEmitCounter = 0;
+        this.socket.emit('player:move', {
+          code: this.partyCode,
+          x: Math.round(this.player.x),
+          y: Math.round(this.player.y),
+          state: this.isDead ? 'dead' : 'alive',
+        });
+      }
+    }
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     const onGround = body.blocked.down;
 
@@ -545,6 +585,11 @@ export class MainScene extends Phaser.Scene {
     this.player.setVelocity(0, 0);
     (this.player.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
 
+    // Emit finish to party room
+    if (this.socket && this.partyCode) {
+      this.socket.emit('player:finish', { code: this.partyCode, time: elapsed });
+    }
+
     const { width, height } = this.scale;
     const overlay = this.add
       .rectangle(0, 0, width, height, 0x000000, 0)
@@ -630,5 +675,43 @@ export class MainScene extends Phaser.Scene {
         },
       });
     });
+  }
+
+  // ── Multiplayer socket listeners ─────────────────────────────────────────
+
+  private registerSocketListeners() {
+    if (!this.socket) return;
+
+    this.socket.on(
+      'player:update',
+      (payload: { id: string; x: number; y: number; state: string }) => {
+        this.updateGhost(payload.id, payload.x, payload.y, payload.state);
+      },
+    );
+
+    this.socket.on('player:left', (payload: { id: string }) => {
+      this.removeGhost(payload.id);
+    });
+  }
+
+  private updateGhost(id: string, x: number, y: number, state: string) {
+    let ghost = this.ghostSprites.get(id);
+    if (!ghost) {
+      // Create a new ghost sprite for this remote player
+      ghost = this.add.rectangle(x, y, PLAYER_W, PLAYER_H, 0xb9add6, 0.62) as unknown as Phaser.GameObjects.Rectangle;
+      (ghost as unknown as Phaser.GameObjects.Rectangle).setStrokeStyle(1, 0xd4c8f0, 0.72);
+      (ghost as unknown as Phaser.GameObjects.Rectangle).setDepth(5);
+      this.ghostSprites.set(id, ghost);
+    }
+    ghost.setPosition(x, y);
+    ghost.setAlpha(state === 'dead' ? 0.28 : 0.62);
+  }
+
+  private removeGhost(id: string) {
+    const ghost = this.ghostSprites.get(id);
+    if (ghost) {
+      ghost.destroy();
+      this.ghostSprites.delete(id);
+    }
   }
 }
