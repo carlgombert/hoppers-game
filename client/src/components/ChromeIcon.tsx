@@ -9,6 +9,7 @@ export type ChromeIconVariant =
   | 'panel'
   | 'profile'
   | 'orb'
+  | 'browse'
   | 'chevron';
 
 interface ChromeIconProps extends Omit<SVGProps<SVGSVGElement>, 'children'> {
@@ -103,6 +104,17 @@ export default function ChromeIcon({ variant, size = 24, className = '', ...prop
           <path d="M12 7.5v9" className="xp-icon-shell" />
           <path d="M8.7 10.4L12 7.5l3.3 2.9" className="xp-icon-accent" />
           <path d="M8.7 13.6L12 16.5l3.3-2.9" className="xp-icon-dim" />
+        </>
+      )}
+
+      {variant === 'browse' && (
+        <>
+          <rect x="4" y="4.5" width="10" height="10" rx="2" className="xp-icon-shell" />
+          <path d="M12 9.5h4.5v7H8.5V14" className="xp-icon-shell xp-icon-dim" />
+          <path d="M6.5 8h5" className="xp-icon-accent" />
+          <path d="M6.5 10.5h3" className="xp-icon-fill" />
+          <circle cx="17" cy="7" r="2.2" className="xp-icon-shell" />
+          <path d="M18.5 8.8l2.5 2.5" className="xp-icon-accent" />
         </>
       )}
 

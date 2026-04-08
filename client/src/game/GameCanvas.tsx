@@ -1,9 +1,23 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as Phaser from 'phaser';
 import { type Socket } from 'socket.io-client';
 import { MainScene } from './scenes/MainScene';
 import { type Tile } from '../types/level';
 import { fetchSave, postSave } from '../api/client';
+import SvgIcon from '../components/SvgIcon';
+
+// ── Game-asset URLs (resolved by Vite at build time) ──────────────────────────
+import soraUrl from '../assets/game-assets/characters/Sora.png?url';
+import landTexUrl from '../assets/game-assets/textures/land.png?url';
+import grassTexUrl from '../assets/game-assets/textures/grass.png?url';
+import demonGrassTexUrl from '../assets/game-assets/textures/demon-grass.png?url';
+
+const GAME_ASSET_URLS = {
+  sora: soraUrl,
+  land: landTexUrl,
+  grass: grassTexUrl,
+  demon_grass: demonGrassTexUrl,
+} as const;
 
 interface GameCanvasProps {
   tileData?: Tile[];
@@ -31,6 +45,16 @@ export default function GameCanvas({
 }: GameCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
+
+  // ── Touch controls state ─────────────────────────────────────────────────
+  const [showTouch, setShowTouch] = useState(false);
+  const touchRef = useRef({ left: false, right: false, jump: false });
+
+  // Detect touch devices on mount
+  useEffect(() => {
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    if (hasTouch) setShowTouch(true);
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current || gameRef.current) return;
@@ -84,6 +108,9 @@ export default function GameCanvas({
       // Pass data to scene via registry
       game.registry.set('tileData', tileData);
       game.registry.set('savedCheckpoint', savedCheckpoint);
+
+      // Pass pre-resolved asset URLs so MainScene.preload() can load them
+      game.registry.set('assetUrls', GAME_ASSET_URLS);
 
       // Multiplayer registry values
       game.registry.set('socket', socket ?? null);
@@ -142,9 +169,57 @@ export default function GameCanvas({
   }, [width, height, levelId, socket, partyCode]);
 
   return (
-    <div
-      ref={containerRef}
-      style={{ width: '100%', height: '100%', overflow: 'hidden' }}
-    />
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <div
+        ref={containerRef}
+        style={{ width: '100%', height: '100%', overflow: 'hidden' }}
+      />
+
+      {/* ── Mobile touch controls overlay ────────────────────────────────── */}
+      {showTouch && (
+        <div className="touch-controls">
+          {/* D-pad */}
+          <div className="touch-dpad">
+            <button
+              type="button"
+              className="touch-btn touch-btn--left"
+              onPointerDown={() => { touchRef.current.left = true; dispatchKey('ArrowLeft', 'keydown'); }}
+              onPointerUp={() => { touchRef.current.left = false; dispatchKey('ArrowLeft', 'keyup'); }}
+              onPointerLeave={() => { touchRef.current.left = false; dispatchKey('ArrowLeft', 'keyup'); }}
+              aria-label="Move left"
+            >
+              <SvgIcon name="left" size={22} />
+            </button>
+            <button
+              type="button"
+              className="touch-btn touch-btn--right"
+              onPointerDown={() => { touchRef.current.right = true; dispatchKey('ArrowRight', 'keydown'); }}
+              onPointerUp={() => { touchRef.current.right = false; dispatchKey('ArrowRight', 'keyup'); }}
+              onPointerLeave={() => { touchRef.current.right = false; dispatchKey('ArrowRight', 'keyup'); }}
+              aria-label="Move right"
+            >
+              <SvgIcon name="right" size={22} />
+            </button>
+          </div>
+
+          {/* Jump button */}
+          <button
+            type="button"
+            className="touch-btn touch-btn--jump"
+            onPointerDown={() => { dispatchKey('ArrowUp', 'keydown'); }}
+            onPointerUp={() => { dispatchKey('ArrowUp', 'keyup'); }}
+            onPointerLeave={() => { dispatchKey('ArrowUp', 'keyup'); }}
+            aria-label="Jump"
+          >
+            <SvgIcon name="up" size={24} />
+          </button>
+        </div>
+      )}
+    </div>
   );
+}
+
+/** Dispatch a synthetic keyboard event to the window so Phaser picks it up. */
+function dispatchKey(key: string, type: 'keydown' | 'keyup') {
+  window.dispatchEvent(new KeyboardEvent(type, { key, code: key, bubbles: true }));
 }

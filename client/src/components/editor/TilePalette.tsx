@@ -47,7 +47,7 @@ export default function TilePalette({ selected, onSelect, pendingPortalId }: Pro
                 <span className="xp-palette-label">
                   {meta.label}
                   {type === 'portal' && pendingPortalId && selected === 'portal' && (
-                    <span className="xp-palette-portal-hint"> · click 2nd</span>
+                    <span className="xp-palette-portal-hint"> - click 2nd</span>
                   )}
                 </span>
               </button>

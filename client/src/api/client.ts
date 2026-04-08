@@ -228,3 +228,43 @@ export async function joinParty(code: string): Promise<ApiParty> {
   });
   return handleResponse<ApiParty>(res);
 }
+
+// ── Community browse ─────────────────────────────────────────────────────────
+
+export interface PublishedLevel {
+  id: string;
+  title: string;
+  description: string | null;
+  thumbnail: string | null;
+  created_at: string;
+  author: string;
+}
+
+export async function fetchPublishedLevels(page = 1): Promise<{
+  levels: PublishedLevel[];
+  total: number;
+  page: number;
+}> {
+  const res = await fetch(`${API_BASE}/levels?page=${page}`);
+  return handleResponse(res);
+}
+
+export async function forkLevel(id: string): Promise<ApiLevel> {
+  const res = await fetch(`${API_BASE}/levels/${id}/fork`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  return handleResponse<ApiLevel>(res);
+}
+
+// ── Leaderboard ───────────────────────────────────────────────────────────────
+
+export interface LeaderboardEntry {
+  display_name: string;
+  elapsed_ms: number;
+}
+
+export async function fetchLeaderboard(levelId: string): Promise<LeaderboardEntry[]> {
+  const res = await fetch(`${API_BASE}/levels/${levelId}/leaderboard`);
+  return handleResponse<LeaderboardEntry[]>(res);
+}

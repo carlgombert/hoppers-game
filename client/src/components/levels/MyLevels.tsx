@@ -1,4 +1,5 @@
 import ChromeIcon from '../ChromeIcon';
+import SvgIcon from '../SvgIcon';
 import { type Level } from '../../types/level';
 
 interface Props {
@@ -88,7 +89,8 @@ export default function MyLevels({ levels, loading, onPlay, onEdit, onDelete, on
                   className="xp-btn primary xp-level-play-btn"
                   onClick={() => onPlay(level)}
                 >
-                  ▶ Play
+                  <SvgIcon name="play" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                  Play
                 </button>
                 <button
                   type="button"

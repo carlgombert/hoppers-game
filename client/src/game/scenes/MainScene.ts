@@ -45,8 +45,10 @@ export class MainScene extends Phaser.Scene {
   private portalPositions = new Map<string, Array<{ x: number; y: number }>>();
   private portalCooldown = false;
 
+  // Use performance.now() for the start baseline so the timer is independent
+  // of Phaser's internal scene clock (which may not be 0 at create() time).
   private startTime = 0;
-  private timerText!: Phaser.GameObjects.Text;
+  private timerText: Phaser.GameObjects.Text | null = null;
   private finished = false;
 
   private flagStartFound = false;
@@ -63,7 +65,16 @@ export class MainScene extends Phaser.Scene {
     super({ key: 'MainScene' });
   }
 
-  preload() {}
+  preload() {
+    // Load game-asset URLs passed from GameCanvas via game.registry
+    const urls = this.registry.get('assetUrls') as Record<string, string> | null;
+    if (urls) {
+      if (urls.sora) this.load.image('sora', urls.sora);
+      if (urls.land) this.load.image('tile_texture_land', urls.land);
+      if (urls.grass) this.load.image('tile_texture_grass', urls.grass);
+      if (urls.demon_grass) this.load.image('tile_texture_demon_grass', urls.demon_grass);
+    }
+  }
 
   create() {
     this.isDead = false;
@@ -74,7 +85,7 @@ export class MainScene extends Phaser.Scene {
     this.flagStartFound = false;
     this.fallingLandCrumbling.clear();
     this.portalPositions.clear();
-    this.startTime = this.time.now;
+    this.startTime = performance.now();
 
     // Multiplayer setup
     this.ghostSprites.clear();
@@ -116,7 +127,9 @@ export class MainScene extends Phaser.Scene {
       this.buildFromTileData(DEMO_LEVEL_TILES);
     }
 
-    if (!this.textures.exists('player')) {
+    // Player texture: use Sora.png if loaded, otherwise generate a placeholder
+    const playerTexKey = this.textures.exists('sora') ? 'sora' : 'player';
+    if (playerTexKey === 'player' && !this.textures.exists('player')) {
       const gfx = this.make.graphics({ x: 0, y: 0 });
       gfx.fillStyle(0x4db8ff, 1);
       gfx.fillRoundedRect(0, 0, PLAYER_W, PLAYER_H, 4);
@@ -143,7 +156,9 @@ export class MainScene extends Phaser.Scene {
       this.checkpointY = savedCheckpoint.y;
     }
 
-    this.player = this.physics.add.sprite(startX, startY, 'player');
+    this.player = this.physics.add.sprite(startX, startY, playerTexKey);
+    // Scale Sora (64×64 PNG) to match the physics body dimensions for consistency
+    this.player.setDisplaySize(PLAYER_W, PLAYER_H);
     this.player.setCollideWorldBounds(false);
     this.player.setBounce(0);
     const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
@@ -171,7 +186,7 @@ export class MainScene extends Phaser.Scene {
     this.cameras.main.setDeadzone(width * 0.3, height * 0.3);
 
     this.add
-      .text(width / 2, 16, 'Arrow keys or WASD · Space to jump', {
+      .text(width / 2, 16, 'Arrow keys or WASD  |  Space to jump', {
         fontFamily: 'Tahoma, Arial',
         fontSize: '11px',
         color: '#7ab8f5',
@@ -186,7 +201,8 @@ export class MainScene extends Phaser.Scene {
         color: '#e0e8ff',
       })
       .setOrigin(1, 0)
-      .setScrollFactor(0);
+      .setScrollFactor(0)
+      .setDepth(15);
   }
 
   private buildFromTileData(tiles: Tile[]) {
@@ -212,9 +228,12 @@ export class MainScene extends Phaser.Scene {
       const meta = TILE_META[tile.type];
       const px = tile.x * TILE;
       const py = tile.y * TILE;
-      const textureKey = `tile_type_${tile.type}`;
 
-      if (!generatedTextures.has(textureKey)) {
+      // Use a pre-loaded PNG texture for this tile type if available
+      const pngKey = `tile_texture_${tile.type}`;
+      const textureKey = this.textures.exists(pngKey) ? pngKey : `tile_type_${tile.type}`;
+
+      if (textureKey === `tile_type_${tile.type}` && !generatedTextures.has(textureKey)) {
         const gfx = this.make.graphics({ x: 0, y: 0 });
         this.drawTileGfx(gfx, tile.type, meta.color, meta.gloss);
         gfx.generateTexture(textureKey, TILE, TILE);
@@ -349,7 +368,7 @@ export class MainScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(20);
     this.add
-      .text(width / 2, height / 2 - 24, '⚠ Level Error', {
+      .text(width / 2, height / 2 - 24, 'Level Error', {
         fontFamily: 'Tahoma, Arial', fontSize: '28px', fontStyle: 'bold', color: '#ff4444',
       })
       .setOrigin(0.5, 0.5)
@@ -399,24 +418,37 @@ export class MainScene extends Phaser.Scene {
   }
 
   update() {
-    if (this.isDead || this.finished) return;
+    // Update timer every frame while the level is in progress (runs even during death)
+    if (!this.finished && this.timerText) {
+      const elapsed = performance.now() - this.startTime;
+      const totalSec = Math.floor(elapsed / 1000);
+      const min = Math.floor(totalSec / 60);
+      const sec = totalSec % 60;
+      this.timerText.setText(`${min}:${sec.toString().padStart(2, '0')}`);
+    }
 
-    const elapsed = this.time.now - this.startTime;
-    const totalSec = Math.floor(elapsed / 1000);
-    const min = Math.floor(totalSec / 60);
-    const sec = totalSec % 60;
-    this.timerText.setText(`${min}:${sec.toString().padStart(2, '0')}`);
+    if (this.isDead || this.finished) return;
 
     // Emit position to party at ~20 fps (every 3 frames at 60fps)
     if (this.socket && this.partyCode) {
       this.moveEmitCounter++;
       if (this.moveEmitCounter >= 3) {
         this.moveEmitCounter = 0;
+        const body = this.player.body as Phaser.Physics.Arcade.Body;
+        const onGround = body.blocked.down;
+        let moveState = 'idle';
+        if (this.isDead) {
+          moveState = 'dead';
+        } else if (!onGround) {
+          moveState = 'jumping';
+        } else if (Math.abs(body.velocity.x) > 10) {
+          moveState = 'running';
+        }
         this.socket.emit('player:move', {
           code: this.partyCode,
           x: Math.round(this.player.x),
           y: Math.round(this.player.y),
-          state: this.isDead ? 'dead' : 'alive',
+          state: moveState,
         });
       }
     }
@@ -580,7 +612,7 @@ export class MainScene extends Phaser.Scene {
     if (this.finished) return;
     this.finished = true;
 
-    const elapsed = this.time.now - this.startTime;
+    const elapsed = performance.now() - this.startTime;
     this.player.setTint(0x50c860);
     this.player.setVelocity(0, 0);
     (this.player.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
@@ -695,16 +727,23 @@ export class MainScene extends Phaser.Scene {
   }
 
   private updateGhost(id: string, x: number, y: number, state: string) {
+    // Color and alpha per animation state
+    const isDead = state === 'dead';
+    const isJumping = state === 'jumping';
+    const fillColor = isDead ? 0x888888 : isJumping ? 0xd4c8f0 : 0xb9add6;
+    const alpha = isDead ? 0.25 : 0.55;
+
     let ghost = this.ghostSprites.get(id);
     if (!ghost) {
-      // Create a new ghost sprite for this remote player
-      ghost = this.add.rectangle(x, y, PLAYER_W, PLAYER_H, 0xb9add6, 0.62) as unknown as Phaser.GameObjects.Rectangle;
-      (ghost as unknown as Phaser.GameObjects.Rectangle).setStrokeStyle(1, 0xd4c8f0, 0.72);
+      // Create ghost rectangle — no physics body, so no collision with local player
+      ghost = this.add.rectangle(x, y, PLAYER_W, PLAYER_H, fillColor, alpha) as unknown as Phaser.GameObjects.Rectangle;
+      (ghost as unknown as Phaser.GameObjects.Rectangle).setStrokeStyle(1, 0xd4c8f0, 0.7);
       (ghost as unknown as Phaser.GameObjects.Rectangle).setDepth(5);
       this.ghostSprites.set(id, ghost);
     }
+
     ghost.setPosition(x, y);
-    ghost.setAlpha(state === 'dead' ? 0.28 : 0.62);
+    (ghost as unknown as Phaser.GameObjects.Rectangle).setFillStyle(fillColor, alpha);
   }
 
   private removeGhost(id: string) {
@@ -712,6 +751,17 @@ export class MainScene extends Phaser.Scene {
     if (ghost) {
       ghost.destroy();
       this.ghostSprites.delete(id);
+    }
+  }
+
+  shutdown() {
+    // Clean up all ghost sprites and labels when scene is destroyed
+    this.ghostSprites.forEach((g) => g.destroy());
+    this.ghostSprites.clear();
+    // Remove socket listeners added by this scene
+    if (this.socket) {
+      this.socket.off('player:update');
+      this.socket.off('player:left');
     }
   }
 }

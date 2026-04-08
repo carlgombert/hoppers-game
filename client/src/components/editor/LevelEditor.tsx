@@ -3,6 +3,7 @@ import { type Tile, type Level, type TileType, type EditorTool } from '../../typ
 import TilePalette from './TilePalette';
 import TileCanvas from './TileCanvas';
 import GameCanvas from '../../game/GameCanvas';
+import SvgIcon from '../SvgIcon';
 
 const MAX_UNDO = 50;
 
@@ -251,7 +252,8 @@ export default function LevelEditor({ level, onSave, onCancel }: Props) {
           Cancel
         </button>
         <button type="button" className="xp-btn ghost" onClick={handlePreview}>
-          ▶ Preview
+          <SvgIcon name="preview" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+          Preview
         </button>
         <button type="button" className="xp-btn" onClick={handleSaveDraft}>
           Save Draft

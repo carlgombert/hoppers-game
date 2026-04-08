@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { type Socket } from 'socket.io-client';
 import ChromeIcon, { type ChromeIconVariant } from './components/ChromeIcon';
+import SvgIcon from './components/SvgIcon';
 import PanelChrome from './components/PanelChrome';
 import GameCanvas from './game/GameCanvas';
 import LevelEditor from './components/editor/LevelEditor';
 import MyLevels from './components/levels/MyLevels';
+import CommunityBrowse from './components/community/CommunityBrowse';
 import PartyLobby, { type PartyReadyPayload } from './components/party/PartyLobby';
 import SettingsPage from './components/settings/SettingsPage';
 import LoginScreen from './components/auth/LoginScreen';
@@ -13,6 +15,7 @@ import { getAvatarSrc } from './components/auth/AvatarPicker';
 import { useAuth } from './auth/AuthContext';
 import {
   fetchMyLevels,
+  fetchLevel,
   createLevel,
   patchLevel,
   deleteLevel,
@@ -20,7 +23,7 @@ import {
 } from './api/client';
 import { type Level } from './types/level';
 
-type NavId = 'build' | 'levels' | 'party' | 'settings';
+type NavId = 'build' | 'levels' | 'browse' | 'party' | 'settings';
 type ViewId = NavId | 'game';
 type AuthView = 'login' | 'register';
 
@@ -33,6 +36,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: 'build',    label: 'Level Editor', icon: 'editor'   },
   { id: 'levels',   label: 'My Levels',    icon: 'levels'   },
+  { id: 'browse',   label: 'Community',    icon: 'browse'   },
   { id: 'party',    label: 'Party Lobby',  icon: 'party'    },
   { id: 'settings', label: 'Settings',     icon: 'settings' },
 ];
@@ -171,7 +175,24 @@ export default function App() {
     setView('game');
   }
 
+  /** Play a community level — fetches full tile_data if not already present. */
+  async function handleCommunityPlay(level: Level) {
+    if (!level.tile_data || level.tile_data.length === 0) {
+      try {
+        const full = await fetchLevel(level.id);
+        setPlayingLevel({ ...level, tile_data: full.tile_data ?? [] });
+      } catch {
+        setPlayingLevel(level);
+      }
+    } else {
+      setPlayingLevel(level);
+    }
+    setCompletionTime(null);
+    setView('game');
+  }
+
   function handleQuitGame() {
+    partySocket?.disconnect();
     setPlayingLevel(null);
     setCompletionTime(null);
     setPartyFinishTimes(new Map());
@@ -251,7 +272,9 @@ export default function App() {
 
           <div className="xp-task-group">
             <div className="xp-pane-heading">OTHER PLACES</div>
-            <button type="button" className="xp-task-chip">Community Levels</button>
+            <button type="button" className="xp-task-chip" onClick={() => setView('browse')}>
+              Community Levels
+            </button>
             <button type="button" className="xp-task-chip" onClick={() => setView('party')}>
               Party Browser
             </button>
@@ -304,7 +327,10 @@ export default function App() {
               {completionTime !== null && !partySocket && (
                 <div className="xp-completion-overlay">
                   <div className="xp-completion-card">
-                    <div className="xp-completion-title">Level Complete! 🎉</div>
+                    <div className="xp-completion-title">
+                      <SvgIcon name="trophy" size={20} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+                      Level Complete!
+                    </div>
                     <div className="xp-completion-time">
                       {formatTime(completionTime)}
                     </div>
@@ -379,6 +405,13 @@ export default function App() {
               onEdit={(level) => goToEditor(level)}
               onDelete={handleDeleteLevel}
               onCreateNew={() => goToEditor()}
+            />
+          )}
+
+          {/* ── Community Browse ─────────────────────────────── */}
+          {view === 'browse' && (
+            <CommunityBrowse
+              onPlay={handleCommunityPlay}
             />
           )}
 

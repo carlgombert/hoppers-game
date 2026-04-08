@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import ChromeIcon from '../ChromeIcon';
-import { createParty, joinParty, fetchLevel, type ApiParty, type ApiLevel } from '../../api/client';
+import { createParty, joinParty, fetchLevel, getToken, type ApiParty, type ApiLevel } from '../../api/client';
 import { type Level } from '../../types/level';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
@@ -88,7 +88,11 @@ export default function PartyLobby({ myLevels, onPartyReady }: Props) {
   function connectAndWait(code: string, level: Level) {
     disconnectSocket();
 
-    const socket = io(SOCKET_URL, { transports: ['websocket'] });
+    const token = getToken() ?? '';
+    const socket = io(SOCKET_URL, {
+      transports: ['websocket'],
+      auth: { token },
+    });
     socketRef.current = socket;
 
     socket.on('connect', () => {
@@ -96,12 +100,22 @@ export default function PartyLobby({ myLevels, onPartyReady }: Props) {
     });
 
     socket.on('party:ready', () => {
+      // Handoff ownership to App/GameCanvas; avoid disconnecting during PartyLobby unmount.
+      socketRef.current = null;
       onPartyReady({ socket, partyCode: code, level });
     });
 
-    socket.on('connect_error', () => {
-      setHostError('Connection failed. Check that the server is running.');
-      setGuestError('Connection failed. Check that the server is running.');
+    socket.on('party:error', ({ message }: { message: string }) => {
+      setHostError(message);
+      setGuestError(message);
+    });
+
+    socket.on('connect_error', (err) => {
+      const msg = err.message.startsWith('Unauthorized')
+        ? 'Authentication failed. Please sign in again.'
+        : 'Connection failed. Check that the server is running.';
+      setHostError(msg);
+      setGuestError(msg);
     });
   }
 
