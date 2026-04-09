@@ -60,6 +60,7 @@ export interface AuthUser {
   id: string;
   email: string;
   display_name: string;
+  character_key?: string;
 }
 
 export async function register(

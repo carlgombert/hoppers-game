@@ -22,6 +22,7 @@ import {
   type ApiLevel,
 } from './api/client';
 import { type Level } from './types/level';
+import { DEFAULT_CHARACTER_KEY } from './types/characters';
 
 type NavId = 'build' | 'levels' | 'browse' | 'party' | 'settings';
 type ViewId = NavId | 'game';
@@ -334,6 +335,7 @@ export default function App() {
                 tileData={playingLevel?.tile_data ?? []}
                 levelId={playingLevel?.id}
                 startFresh={startFresh}
+                characterKey={user.character_key ?? DEFAULT_CHARACTER_KEY}
                 onComplete={handleLevelComplete}
                 socket={partySocket ?? undefined}
                 partyCode={partyCode ?? undefined}

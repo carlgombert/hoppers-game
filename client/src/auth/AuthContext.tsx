@@ -12,6 +12,8 @@ export interface AuthUser {
   email: string;
   display_name: string;
   avatar_id: number | null;
+  /** Persisted playable character key (e.g. 'sora', 'nick'). Defaults to 'sora'. */
+  character_key: string;
 }
 
 interface AuthState {
@@ -25,6 +27,7 @@ interface AuthContextValue extends AuthState {
   register: (email: string, password: string, display_name: string, avatar_id?: number | null) => Promise<void>;
   logout: () => Promise<void>;
   updateAvatar: (avatar_id: number) => Promise<void>;
+  updateCharacter: (character_key: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -145,9 +148,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({ ...s, user: body.user }));
   }, [state]);
 
+  const updateCharacter = useCallback(async (character_key: string) => {
+    const { token } = state;
+    if (!token) throw new Error('Not authenticated');
+    const res = await apiFetch('/auth/me', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ character_key }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error((body as { error?: string }).error ?? 'Failed to update character');
+    }
+    const body = (await res.json()) as { user: AuthUser };
+    setState((s) => ({ ...s, user: body.user }));
+  }, [state]);
+
   const value = useMemo<AuthContextValue>(
-    () => ({ ...state, login, register, logout, updateAvatar }),
-    [state, login, register, logout, updateAvatar]
+    () => ({ ...state, login, register, logout, updateAvatar, updateCharacter }),
+    [state, login, register, logout, updateAvatar, updateCharacter]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
