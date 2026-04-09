@@ -3,7 +3,7 @@ import { type Tile } from '../types/level';
 /**
  * A built-in demo level that showcases every tile type.
  *
- * Grid coordinates — each unit = 32 px.  y increases downward.
+ * Grid coordinates — each unit = 40 px.  y increases downward.
  *
  * Layout overview (floor at y=18):
  *   Start → Ladder → Grass → Ice (slide!) → Moving-box dodge → Checkpoint →

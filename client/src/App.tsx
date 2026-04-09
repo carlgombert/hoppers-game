@@ -76,6 +76,8 @@ export default function App() {
   const [playingLevel, setPlayingLevel] = useState<Level | null>(null);
   const [levelsLoading, setLevelsLoading] = useState(false);
   const [completionTime, setCompletionTime] = useState<number | null>(null);
+  const [gameInstanceId, setGameInstanceId] = useState(0);
+  const [startFresh, setStartFresh] = useState(false);
 
   // Party / multiplayer state
   const [partySocket, setPartySocket] = useState<Socket | null>(null);
@@ -172,6 +174,8 @@ export default function App() {
   function handlePlayLevel(level: Level) {
     setPlayingLevel(level);
     setCompletionTime(null);
+    setStartFresh(false);
+    setGameInstanceId((v) => v + 1);
     setView('game');
   }
 
@@ -188,13 +192,22 @@ export default function App() {
       setPlayingLevel(level);
     }
     setCompletionTime(null);
+    setStartFresh(false);
+    setGameInstanceId((v) => v + 1);
     setView('game');
+  }
+
+  function handlePlayAgain() {
+    setCompletionTime(null);
+    setStartFresh(true);
+    setGameInstanceId((v) => v + 1);
   }
 
   function handleQuitGame() {
     partySocket?.disconnect();
     setPlayingLevel(null);
     setCompletionTime(null);
+    setStartFresh(false);
     setPartyFinishTimes(new Map());
     setPartySocket(null);
     setPartyCode(null);
@@ -207,6 +220,8 @@ export default function App() {
     setPartyFinishTimes(new Map());
     setPlayingLevel(level);
     setCompletionTime(null);
+    setStartFresh(false);
+    setGameInstanceId((v) => v + 1);
     setView('game');
   }
 
@@ -315,8 +330,10 @@ export default function App() {
           {view === 'game' && (
             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
               <GameCanvas
+                key={gameInstanceId}
                 tileData={playingLevel?.tile_data ?? []}
                 levelId={playingLevel?.id}
+                startFresh={startFresh}
                 onComplete={handleLevelComplete}
                 socket={partySocket ?? undefined}
                 partyCode={partyCode ?? undefined}
@@ -338,7 +355,7 @@ export default function App() {
                       <button
                         type="button"
                         className="xp-btn primary"
-                        onClick={() => handlePlayLevel(playingLevel!)}
+                        onClick={handlePlayAgain}
                       >
                         Play Again
                       </button>

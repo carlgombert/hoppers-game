@@ -11,12 +11,14 @@ import soraUrl from '../assets/game-assets/characters/Sora.png?url';
 import landTexUrl from '../assets/game-assets/textures/land.png?url';
 import grassTexUrl from '../assets/game-assets/textures/grass.png?url';
 import demonGrassTexUrl from '../assets/game-assets/textures/demon-grass.png?url';
+import ladderTexUrl from '../assets/game-assets/textures/ladder.png?url';
 
 const GAME_ASSET_URLS = {
   sora: soraUrl,
   land: landTexUrl,
   grass: grassTexUrl,
   demon_grass: demonGrassTexUrl,
+  ladder: ladderTexUrl,
 } as const;
 
 interface GameCanvasProps {
@@ -24,6 +26,8 @@ interface GameCanvasProps {
   levelId?: string;
   width?: number;
   height?: number;
+  /** If true, always start from level spawn and ignore saved checkpoint resume. */
+  startFresh?: boolean;
   onComplete?: (elapsedMs: number) => void;
   /** Socket.io socket for multiplayer — omit for solo play */
   socket?: Socket;
@@ -38,6 +42,7 @@ export default function GameCanvas({
   levelId,
   width = 800,
   height = 500,
+  startFresh = false,
   onComplete,
   socket,
   partyCode,
@@ -66,7 +71,7 @@ export default function GameCanvas({
 
       // Try to load a saved checkpoint for this level
       let savedCheckpoint: { x: number; y: number } | null = null;
-      if (levelId) {
+      if (levelId && !startFresh) {
         try {
           const save = await fetchSave(levelId);
           // Only resume at a position if both x and y are present (a real checkpoint, not a completion save)
@@ -89,11 +94,19 @@ export default function GameCanvas({
         height,
         parent: containerRef.current,
         backgroundColor: '#0a1628',
+        pixelArt: true,
+        antialias: false,
         physics: {
           default: 'arcade',
           arcade: {
             gravity: { x: 0, y: 600 },
-            debug: false,
+            debug: true,
+            debugShowBody: true,
+            debugShowStaticBody: true,
+            debugShowVelocity: false,
+            debugBodyColor: 0xff0000,
+            debugStaticBodyColor: 0xff0000,
+            debugVelocityColor: 0xff0000,
           },
         },
         scene: [MainScene],
@@ -166,7 +179,7 @@ export default function GameCanvas({
       gameRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [width, height, levelId, socket, partyCode]);
+  }, [width, height, levelId, startFresh, socket, partyCode]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>

@@ -3,9 +3,11 @@ import { type Socket } from 'socket.io-client';
 import { type Tile, TILE_META } from '../../types/level';
 import { DEMO_LEVEL_TILES } from '../demoLevel';
 
-const TILE = 32;
-const PLAYER_W = 24;
-const PLAYER_H = 32;
+const TILE = 40;
+const PLAYER_W_GROUNDED = 40;
+const PLAYER_W_AIRBORNE = 28;
+const PLAYER_H = 56;
+const PLAYER_SPRITE_SIZE = 64;
 const PLAYER_SPEED = 200;
 const PLAYER_ACCEL = 900;
 const PLAYER_DRAG = 800;
@@ -35,7 +37,7 @@ export class MainScene extends Phaser.Scene {
   };
 
   private spawnX = TILE * 2;
-  private spawnY = TILE * 2;
+  private spawnY = TILE * 2 - PLAYER_H / 2;
   private checkpointX: number | null = null;
   private checkpointY: number | null = null;
   private isDead = false;
@@ -44,6 +46,8 @@ export class MainScene extends Phaser.Scene {
 
   private portalPositions = new Map<string, Array<{ x: number; y: number }>>();
   private portalCooldown = false;
+  private colliderDebugVisible = true;
+  private debugToggleKey!: Phaser.Input.Keyboard.Key;
 
   // Use performance.now() for the start baseline so the timer is independent
   // of Phaser's internal scene clock (which may not be 0 at create() time).
@@ -52,6 +56,8 @@ export class MainScene extends Phaser.Scene {
   private finished = false;
 
   private flagStartFound = false;
+  private killPlaneY = 0;
+  private currentPlayerColliderW = PLAYER_W_GROUNDED;
 
   private fallingLandCrumbling = new Set<Phaser.Physics.Arcade.Image>();
 
@@ -73,6 +79,7 @@ export class MainScene extends Phaser.Scene {
       if (urls.land) this.load.image('tile_texture_land', urls.land);
       if (urls.grass) this.load.image('tile_texture_grass', urls.grass);
       if (urls.demon_grass) this.load.image('tile_texture_demon_grass', urls.demon_grass);
+      if (urls.ladder) this.load.image('tile_texture_ladder', urls.ladder);
     }
   }
 
@@ -100,6 +107,8 @@ export class MainScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const tileData: Tile[] = this.registry.get('tileData') ?? [];
     const savedCheckpoint: { x: number; y: number } | null = this.registry.get('savedCheckpoint') ?? null;
+    const activeTiles = tileData.length > 0 ? tileData : DEMO_LEVEL_TILES;
+    this.killPlaneY = this.computeKillPlaneY(activeTiles, height);
 
     const bg = this.add.graphics();
     bg.fillGradientStyle(0x0a1628, 0x0a1628, 0x0d1e3d, 0x0d1e3d, 1);
@@ -132,20 +141,20 @@ export class MainScene extends Phaser.Scene {
     if (playerTexKey === 'player' && !this.textures.exists('player')) {
       const gfx = this.make.graphics({ x: 0, y: 0 });
       gfx.fillStyle(0x4db8ff, 1);
-      gfx.fillRoundedRect(0, 0, PLAYER_W, PLAYER_H, 4);
+      gfx.fillRoundedRect(0, 0, PLAYER_SPRITE_SIZE, PLAYER_SPRITE_SIZE, 8);
       gfx.fillStyle(0x7ab8f5, 1);
-      gfx.fillCircle(PLAYER_W / 2, 8, 7);
-      gfx.generateTexture('player', PLAYER_W, PLAYER_H);
+      gfx.fillCircle(PLAYER_SPRITE_SIZE / 2, 14, 10);
+      gfx.generateTexture('player', PLAYER_SPRITE_SIZE, PLAYER_SPRITE_SIZE);
       gfx.destroy();
     }
 
     if (!this.textures.exists('ghost')) {
       const gg = this.make.graphics({ x: 0, y: 0 });
       gg.fillStyle(0xb9add6, 1);
-      gg.fillRoundedRect(0, 0, PLAYER_W, PLAYER_H, 4);
+      gg.fillRoundedRect(0, 0, PLAYER_W_GROUNDED, PLAYER_H, 4);
       gg.fillStyle(0xd4c8f0, 1);
-      gg.fillCircle(PLAYER_W / 2, 8, 7);
-      gg.generateTexture('ghost', PLAYER_W, PLAYER_H);
+      gg.fillCircle(PLAYER_W_GROUNDED / 2, 8, 7);
+      gg.generateTexture('ghost', PLAYER_W_GROUNDED, PLAYER_H);
       gg.destroy();
     }
 
@@ -157,13 +166,14 @@ export class MainScene extends Phaser.Scene {
     }
 
     this.player = this.physics.add.sprite(startX, startY, playerTexKey);
-    // Scale Sora (64×64 PNG) to match the physics body dimensions for consistency
-    this.player.setDisplaySize(PLAYER_W, PLAYER_H);
+    // Keep character art square at native 64x64 so images are not squeezed.
+    this.player.setDisplaySize(PLAYER_SPRITE_SIZE, PLAYER_SPRITE_SIZE);
     this.player.setCollideWorldBounds(false);
     this.player.setBounce(0);
     const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
+    this.setPlayerColliderWidth(PLAYER_W_GROUNDED);
     playerBody.setMaxVelocityX(PLAYER_SPEED);
-    playerBody.setMaxVelocityY(800); // prevent tunnelling through 32px platforms
+    playerBody.setMaxVelocityY(800); // prevent tunnelling through platform tiles
 
     this.physics.add.collider(this.player, this.platforms);
     this.physics.add.collider(this.player, this.fallingLandGroup, this.onFallingLandContact, undefined, this);
@@ -181,6 +191,9 @@ export class MainScene extends Phaser.Scene {
       left:  this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A),
       right: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
     };
+    this.debugToggleKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.C);
+
+    this.setColliderDebugVisible(true);
 
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.cameras.main.setDeadzone(width * 0.3, height * 0.3);
@@ -324,7 +337,7 @@ export class MainScene extends Phaser.Scene {
           const cp = this.checkpointGroup.create(cx, cy, textureKey) as Phaser.Physics.Arcade.Image;
           cp.setDisplaySize(TILE, TILE);
           cp.setData('spawnX', cx);
-          cp.setData('spawnY', cy - TILE);
+          cp.setData('spawnY', cy - TILE / 2 - PLAYER_H / 2);
           cp.setAlpha(0);
           cp.refreshBody();
           break;
@@ -349,7 +362,7 @@ export class MainScene extends Phaser.Scene {
             fontFamily: 'Tahoma, Arial', fontSize: '14px', fontStyle: 'bold', color: '#fff',
           }).setOrigin(0.5, 0.5);
           this.spawnX = cx;
-          this.spawnY = py - TILE / 2;
+          this.spawnY = py - PLAYER_H / 2;
           break;
         }
 
@@ -418,6 +431,8 @@ export class MainScene extends Phaser.Scene {
   }
 
   update() {
+    this.updateColliderDebugToggle();
+
     // Update timer every frame while the level is in progress (runs even during death)
     if (!this.finished && this.timerText) {
       const elapsed = performance.now() - this.startTime;
@@ -460,12 +475,12 @@ export class MainScene extends Phaser.Scene {
       this.iceGroup.getChildren().forEach((child) => {
         const iceImg = child as Phaser.Physics.Arcade.Image;
         const iceBody = iceImg.body as Phaser.Physics.Arcade.StaticBody;
-        const playerLeft = this.player.x - PLAYER_W / 2;
-        const playerRight = this.player.x + PLAYER_W / 2;
+        const playerLeft = body.x;
+        const playerRight = body.x + body.width;
         const iceLeft = iceBody.x;
         const iceRight = iceBody.x + iceBody.width;
         const iceTop = iceBody.y;
-        const playerBottom = body.y + PLAYER_H;
+        const playerBottom = body.y + body.height;
         if (
           playerRight > iceLeft &&
           playerLeft < iceRight &&
@@ -481,14 +496,23 @@ export class MainScene extends Phaser.Scene {
       const ladderImg = child as Phaser.Physics.Arcade.Image;
       const lb = ladderImg.body as Phaser.Physics.Arcade.StaticBody;
       if (
-        this.player.x + PLAYER_W / 2 > lb.x &&
-        this.player.x - PLAYER_W / 2 < lb.x + lb.width &&
-        this.player.y + PLAYER_H / 2 > lb.y &&
-        this.player.y - PLAYER_H / 2 < lb.y + lb.height
+        body.x + body.width > lb.x &&
+        body.x < lb.x + lb.width &&
+        body.y + body.height > lb.y &&
+        body.y < lb.y + lb.height
       ) {
         this.onLadder = true;
       }
     });
+
+    // Keep normal width on ground/ladder and narrow only while truly airborne.
+    // Expand to grounded width only when there is clear horizontal space.
+    const shouldBeAirborneWidth = !onGround && !this.onLadder;
+    if (shouldBeAirborneWidth) {
+      this.setPlayerColliderWidth(PLAYER_W_AIRBORNE);
+    } else if (this.currentPlayerColliderW !== PLAYER_W_GROUNDED && this.canUseGroundedColliderWidth()) {
+      this.setPlayerColliderWidth(PLAYER_W_GROUNDED);
+    }
 
     this.movingBoxGroup.getChildren().forEach((child) => {
       const box = child as Phaser.Physics.Arcade.Image;
@@ -551,12 +575,72 @@ export class MainScene extends Phaser.Scene {
       }
     }
 
-    if (goLeft)  this.player.setFlipX(true);
-    if (goRight) this.player.setFlipX(false);
+    if (goLeft)  this.player.setFlipX(false);
+    if (goRight) this.player.setFlipX(true);
 
-    if (this.player.y > this.scale.height + 200) {
+    if (this.player.y > this.killPlaneY) {
       this.killPlayer();
     }
+  }
+
+  private computeKillPlaneY(tiles: Tile[], fallbackHeight: number): number {
+    if (tiles.length === 0) return fallbackHeight + 200;
+    let maxY = 0;
+    for (const tile of tiles) {
+      if (tile.y > maxY) maxY = tile.y;
+    }
+    return (maxY + 1) * TILE + 240;
+  }
+
+  private setPlayerColliderWidth(width: number) {
+    if (!this.player || this.currentPlayerColliderW === width) return;
+    const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
+    playerBody.setSize(width, PLAYER_H, false);
+    playerBody.setOffset((PLAYER_SPRITE_SIZE - width) / 2, PLAYER_SPRITE_SIZE - PLAYER_H);
+    this.currentPlayerColliderW = width;
+  }
+
+  private canUseGroundedColliderWidth(): boolean {
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    const left = this.player.x - PLAYER_W_GROUNDED / 2;
+    const right = this.player.x + PLAYER_W_GROUNDED / 2;
+    const top = body.y;
+    const bottom = body.y + body.height;
+
+    const intersects = (otherX: number, otherY: number, otherW: number, otherH: number) => {
+      const overlapX = Math.min(right, otherX + otherW) - Math.max(left, otherX);
+      const overlapY = Math.min(bottom, otherY + otherH) - Math.max(top, otherY);
+      // Ignore edge-touching contacts and tiny float jitter.
+      return overlapX > 1 && overlapY > 1;
+    };
+
+    const collidesStaticGroup = (group: Phaser.Physics.Arcade.StaticGroup) => {
+      for (const child of group.getChildren()) {
+        const img = child as Phaser.Physics.Arcade.Image;
+        const staticBody = img.body as Phaser.Physics.Arcade.StaticBody | undefined;
+        if (!img.active || !img.visible || !staticBody || staticBody.enable === false) continue;
+        if (intersects(staticBody.x, staticBody.y, staticBody.width, staticBody.height)) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const collidesDynamicGroup = (group: Phaser.Physics.Arcade.Group) => {
+      for (const child of group.getChildren()) {
+        const img = child as Phaser.Physics.Arcade.Image;
+        const dynBody = img.body as Phaser.Physics.Arcade.Body | undefined;
+        if (!img.active || !img.visible || !dynBody || !dynBody.enable) continue;
+        if (intersects(dynBody.x, dynBody.y, dynBody.width, dynBody.height)) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    return !collidesStaticGroup(this.platforms)
+      && !collidesStaticGroup(this.fallingLandGroup)
+      && !collidesDynamicGroup(this.movingBoxGroup);
   }
 
   private killPlayer() {
@@ -736,7 +820,7 @@ export class MainScene extends Phaser.Scene {
     let ghost = this.ghostSprites.get(id);
     if (!ghost) {
       // Create ghost rectangle — no physics body, so no collision with local player
-      ghost = this.add.rectangle(x, y, PLAYER_W, PLAYER_H, fillColor, alpha) as unknown as Phaser.GameObjects.Rectangle;
+      ghost = this.add.rectangle(x, y, PLAYER_W_GROUNDED, PLAYER_H, fillColor, alpha) as unknown as Phaser.GameObjects.Rectangle;
       (ghost as unknown as Phaser.GameObjects.Rectangle).setStrokeStyle(1, 0xd4c8f0, 0.7);
       (ghost as unknown as Phaser.GameObjects.Rectangle).setDepth(5);
       this.ghostSprites.set(id, ghost);
@@ -754,6 +838,25 @@ export class MainScene extends Phaser.Scene {
     }
   }
 
+  private setColliderDebugVisible(visible: boolean) {
+    this.colliderDebugVisible = visible;
+    const world = this.physics.world as Phaser.Physics.Arcade.World & {
+      debugGraphic?: Phaser.GameObjects.Graphics;
+    };
+
+    world.drawDebug = visible;
+    if (world.debugGraphic) {
+      world.debugGraphic.visible = visible;
+      if (visible) {
+        world.debugGraphic.clear();
+      }
+    }
+  }
+
+  private toggleColliderDebug() {
+    this.setColliderDebugVisible(!this.colliderDebugVisible);
+  }
+
   shutdown() {
     // Clean up all ghost sprites and labels when scene is destroyed
     this.ghostSprites.forEach((g) => g.destroy());
@@ -762,6 +865,12 @@ export class MainScene extends Phaser.Scene {
     if (this.socket) {
       this.socket.off('player:update');
       this.socket.off('player:left');
+    }
+  }
+
+  updateColliderDebugToggle() {
+    if (Phaser.Input.Keyboard.JustDown(this.debugToggleKey)) {
+      this.toggleColliderDebug();
     }
   }
 }
