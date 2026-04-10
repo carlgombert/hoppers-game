@@ -22,6 +22,7 @@ import {
   type ApiLevel,
 } from './api/client';
 import { type Level } from './types/level';
+import { normalizeBackdropId } from './game/backdrops';
 
 type NavId = 'build' | 'levels' | 'browse' | 'party' | 'settings';
 type ViewId = NavId | 'game';
@@ -51,6 +52,7 @@ function apiLevelToLevel(l: ApiLevel): Level {
     id: l.id,
     title: l.title,
     description: l.description ?? '',
+    backdrop_id: normalizeBackdropId(l.backdrop_id),
     tile_data: l.tile_data ?? [],
     published: l.published,
     created_at: l.created_at,
@@ -131,14 +133,16 @@ export default function App() {
         saved = await patchLevel(level.id, {
           title: level.title,
           description: level.description,
+          backdrop_id: level.backdrop_id,
           tile_data: level.tile_data,
           published: level.published,
         });
       } else {
-        saved = await createLevel(level.title, level.description, level.tile_data);
+        saved = await createLevel(level.title, level.description, level.tile_data, level.backdrop_id);
         if (level.published) {
           saved = await patchLevel(saved.id, {
             published: true,
+            backdrop_id: level.backdrop_id,
             tile_data: level.tile_data,
           });
         }
@@ -184,7 +188,11 @@ export default function App() {
     if (!level.tile_data || level.tile_data.length === 0) {
       try {
         const full = await fetchLevel(level.id);
-        setPlayingLevel({ ...level, tile_data: full.tile_data ?? [] });
+        setPlayingLevel({
+          ...level,
+          tile_data: full.tile_data ?? [],
+          backdrop_id: normalizeBackdropId(full.backdrop_id),
+        });
       } catch {
         setPlayingLevel(level);
       }
@@ -333,6 +341,7 @@ export default function App() {
                 key={gameInstanceId}
                 tileData={playingLevel?.tile_data ?? []}
                 levelId={playingLevel?.id}
+                backdropId={playingLevel?.backdrop_id}
                 startFresh={startFresh}
                 onComplete={handleLevelComplete}
                 socket={partySocket ?? undefined}

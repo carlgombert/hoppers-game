@@ -101,6 +101,7 @@ export interface ApiLevel {
   id: string;
   title: string;
   description: string | null;
+  backdrop_id: string | null;
   tile_data: Tile[];
   published: boolean;
   created_at: string;
@@ -119,11 +120,12 @@ export async function createLevel(
   title: string,
   description: string,
   tileData: Tile[],
+  backdropId?: string,
 ): Promise<ApiLevel> {
   const res = await fetch(`${API_BASE}/levels`, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ title, description, tile_data: tileData }),
+    body: JSON.stringify({ title, description, tile_data: tileData, backdrop_id: backdropId }),
   });
   return handleResponse(res);
 }
@@ -134,6 +136,7 @@ export async function patchLevel(
     title: string;
     description: string;
     tile_data: Tile[];
+    backdrop_id: string;
     published: boolean;
   }>,
 ): Promise<ApiLevel> {
@@ -236,6 +239,7 @@ export interface PublishedLevel {
   title: string;
   description: string | null;
   thumbnail: string | null;
+  backdrop_id: string | null;
   created_at: string;
   author: string;
 }

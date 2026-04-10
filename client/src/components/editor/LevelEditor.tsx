@@ -4,6 +4,7 @@ import TilePalette from './TilePalette';
 import TileCanvas from './TileCanvas';
 import GameCanvas from '../../game/GameCanvas';
 import SvgIcon from '../SvgIcon';
+import { BACKDROP_OPTIONS, normalizeBackdropId } from '../../game/backdrops';
 
 const MAX_UNDO = 50;
 
@@ -25,6 +26,7 @@ interface Props {
 export default function LevelEditor({ level, onSave, onCancel }: Props) {
   const [title, setTitle] = useState(level?.title ?? '');
   const [description, setDescription] = useState(level?.description ?? '');
+  const [backdropId, setBackdropId] = useState<string>(normalizeBackdropId(level?.backdrop_id));
   const [tool, setTool] = useState<EditorTool>('land');
   const [tileMap, setTileMap] = useState<Map<string, Tile>>(() => levelToTileMap(level));
   const [undoStack, setUndoStack] = useState<Map<string, Tile>[]>([]);
@@ -152,6 +154,7 @@ export default function LevelEditor({ level, onSave, onCancel }: Props) {
       id: level?.id ?? crypto.randomUUID(),
       title: title.trim() || 'Untitled Level',
       description: description.trim(),
+      backdrop_id: normalizeBackdropId(backdropId),
       tile_data: Array.from(tileMap.values()),
       published,
       created_at: level?.created_at ?? now,
@@ -203,7 +206,7 @@ export default function LevelEditor({ level, onSave, onCancel }: Props) {
             </button>
           </div>
           <div className="xp-preview-canvas">
-            <GameCanvas tileData={previewTiles} />
+            <GameCanvas tileData={previewTiles} backdropId={backdropId} />
           </div>
         </div>
       )}
@@ -289,6 +292,18 @@ export default function LevelEditor({ level, onSave, onCancel }: Props) {
 
         {/* ── Right info strip ──────────────────────────────────── */}
         <div className="xp-editor-info-rail">
+          <div className="xp-pane-heading">BACKDROP</div>
+          <select
+            className="xp-editor-desc-input"
+            aria-label="Backdrop"
+            value={backdropId}
+            onChange={(e) => setBackdropId(normalizeBackdropId(e.target.value))}
+          >
+            {BACKDROP_OPTIONS.map((option) => (
+              <option key={option.id} value={option.id}>{option.label}</option>
+            ))}
+          </select>
+
           <div className="xp-pane-heading">DESCRIPTION</div>
           <textarea
             className="xp-editor-desc-input"

@@ -9,6 +9,7 @@ import {
   type LeaderboardEntry,
 } from '../../api/client';
 import { type Level } from '../../types/level';
+import { normalizeBackdropId } from '../../game/backdrops';
 
 interface Props {
   onPlay: (level: Level) => void;
@@ -163,6 +164,7 @@ export default function CommunityBrowse({ onPlay }: Props) {
                       id: level.id,
                       title: level.title,
                       description: level.description ?? '',
+                      backdrop_id: normalizeBackdropId(level.backdrop_id),
                       tile_data: [],
                       published: true,
                       created_at: level.created_at,

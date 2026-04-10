@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { type Socket } from 'socket.io-client';
 import { type Tile, TILE_META } from '../../types/level';
 import { DEMO_LEVEL_TILES } from '../demoLevel';
+import { DEFAULT_BACKDROP_ID, normalizeBackdropId } from '../backdrops';
 
 const TILE = 40;
 const PLAYER_W_GROUNDED = 40;
@@ -74,12 +75,18 @@ export class MainScene extends Phaser.Scene {
   preload() {
     // Load game-asset URLs passed from GameCanvas via game.registry
     const urls = this.registry.get('assetUrls') as Record<string, string> | null;
+    const backdropUrls = this.registry.get('backdropAssetUrls') as Record<string, string> | null;
     if (urls) {
       if (urls.sora) this.load.image('sora', urls.sora);
       if (urls.land) this.load.image('tile_texture_land', urls.land);
       if (urls.grass) this.load.image('tile_texture_grass', urls.grass);
       if (urls.demon_grass) this.load.image('tile_texture_demon_grass', urls.demon_grass);
       if (urls.ladder) this.load.image('tile_texture_ladder', urls.ladder);
+    }
+    if (backdropUrls) {
+      Object.entries(backdropUrls).forEach(([id, url]) => {
+        this.load.image(`backdrop_${id}`, url);
+      });
     }
   }
 
@@ -110,9 +117,7 @@ export class MainScene extends Phaser.Scene {
     const activeTiles = tileData.length > 0 ? tileData : DEMO_LEVEL_TILES;
     this.killPlaneY = this.computeKillPlaneY(activeTiles, height);
 
-    const bg = this.add.graphics();
-    bg.fillGradientStyle(0x0a1628, 0x0a1628, 0x0d1e3d, 0x0d1e3d, 1);
-    bg.fillRect(0, 0, Math.max(width * 4, 2000), Math.max(height * 4, 2000));
+    this.createBackdrop(width, height);
 
     this.platforms       = this.physics.add.staticGroup();
     this.movingBoxGroup  = this.physics.add.group();
@@ -370,6 +375,26 @@ export class MainScene extends Phaser.Scene {
           break;
       }
     }
+  }
+
+  private createBackdrop(width: number, height: number) {
+    const worldW = Math.max(width * 4, 2000);
+    const worldH = Math.max(height * 2, 1000);
+    const backdropId = normalizeBackdropId(this.registry.get('backdropId') as string | null | undefined);
+
+    if (backdropId !== DEFAULT_BACKDROP_ID && this.textures.exists(`backdrop_${backdropId}`)) {
+      this.add
+        .tileSprite(0, 0, worldW, worldH, `backdrop_${backdropId}`)
+        .setOrigin(0, 0)
+        .setScrollFactor(0.2, 0.05)
+        .setDepth(-10);
+      return;
+    }
+
+    const bg = this.add.graphics();
+    bg.fillGradientStyle(0x0a1628, 0x0a1628, 0x0d1e3d, 0x0d1e3d, 1);
+    bg.fillRect(0, 0, worldW, worldH);
+    bg.setDepth(-10);
   }
 
   private showNoStartFlagError(width: number, height: number) {

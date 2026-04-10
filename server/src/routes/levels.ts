@@ -86,7 +86,7 @@ router.get('/', readLimiter, async (req: Request, res: Response) => {
 
   try {
     const result = await db.query(
-      `SELECT l.id, l.title, l.description, l.thumbnail, l.created_at,
+      `SELECT l.id, l.title, l.description, l.thumbnail, l.backdrop_id, l.created_at,
               u.display_name AS author
        FROM levels l
        JOIN users u ON u.id = l.owner_id
@@ -109,7 +109,7 @@ router.get('/', readLimiter, async (req: Request, res: Response) => {
 router.get('/mine', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const result = await db.query(
-      `SELECT id, title, description, tile_data, published, thumbnail, created_at, updated_at
+      `SELECT id, title, description, tile_data, published, thumbnail, backdrop_id, created_at, updated_at
        FROM levels WHERE owner_id = $1 ORDER BY updated_at DESC`,
       [req.userId]
     );
@@ -142,17 +142,17 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 // POST /levels — create a new level
 router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
-  const { title, description, tile_data } = req.body;
+  const { title, description, tile_data, backdrop_id } = req.body;
   if (!title) {
     res.status(400).json({ error: 'title is required' });
     return;
   }
   try {
     const result = await db.query(
-      `INSERT INTO levels (owner_id, title, description, tile_data)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO levels (owner_id, title, description, tile_data, backdrop_id)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [req.userId, title, description ?? null, JSON.stringify(tile_data ?? [])]
+      [req.userId, title, description ?? null, JSON.stringify(tile_data ?? []), backdrop_id ?? 'default']
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -163,7 +163,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
 
 // PATCH /levels/:id — update level (owner only)
 router.patch('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
-  const { title, description, tile_data, published, thumbnail } = req.body;
+  const { title, description, tile_data, published, thumbnail, backdrop_id } = req.body;
 
   try {
     // Verify ownership
@@ -206,8 +206,9 @@ router.patch('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
          description = COALESCE($2, description),
          tile_data   = COALESCE($3, tile_data),
          published   = COALESCE($4, published),
-         thumbnail   = COALESCE($5, thumbnail)
-       WHERE id = $6
+         thumbnail   = COALESCE($5, thumbnail),
+         backdrop_id = COALESCE($6, backdrop_id)
+       WHERE id = $7
        RETURNING *`,
       [
         title ?? null,
@@ -215,6 +216,7 @@ router.patch('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
         tile_data ? JSON.stringify(tile_data) : null,
         published ?? null,
         thumbnail ?? null,
+        backdrop_id ?? null,
         req.params.id,
       ]
     );
@@ -251,19 +253,19 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
 router.post('/:id/fork', writeLimiter, requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const src = await db.query(
-      `SELECT title, description, tile_data FROM levels WHERE id = $1 AND published = TRUE`,
+      `SELECT title, description, tile_data, backdrop_id FROM levels WHERE id = $1 AND published = TRUE`,
       [req.params.id]
     );
     if (!src.rows[0]) {
       res.status(404).json({ error: 'Level not found or not published' });
       return;
     }
-    const { title, description, tile_data } = src.rows[0];
+    const { title, description, tile_data, backdrop_id } = src.rows[0];
     const result = await db.query(
-      `INSERT INTO levels (owner_id, title, description, tile_data)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO levels (owner_id, title, description, tile_data, backdrop_id)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [req.userId, `${title} (fork)`, description ?? null, JSON.stringify(tile_data)]
+      [req.userId, `${title} (fork)`, description ?? null, JSON.stringify(tile_data), backdrop_id ?? 'default']
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {

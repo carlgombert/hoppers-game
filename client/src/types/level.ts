@@ -29,6 +29,7 @@ export interface Level {
   id: string;
   title: string;
   description: string;
+  backdrop_id: string;
   tile_data: Tile[];
   published: boolean;
   created_at: string;

@@ -3,6 +3,7 @@ import { io, type Socket } from 'socket.io-client';
 import ChromeIcon from '../ChromeIcon';
 import { createParty, joinParty, fetchLevel, getToken, type ApiParty, type ApiLevel } from '../../api/client';
 import { type Level } from '../../types/level';
+import { normalizeBackdropId } from '../../game/backdrops';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
@@ -27,6 +28,7 @@ function apiLevelToLevel(l: ApiLevel): Level {
     id: l.id,
     title: l.title,
     description: l.description ?? '',
+    backdrop_id: normalizeBackdropId(l.backdrop_id),
     tile_data: l.tile_data ?? [],
     published: l.published,
     created_at: l.created_at,

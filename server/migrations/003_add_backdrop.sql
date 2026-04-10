@@ -1,0 +1,2 @@
+ALTER TABLE levels
+ADD COLUMN IF NOT EXISTS backdrop_id TEXT NOT NULL DEFAULT 'default';

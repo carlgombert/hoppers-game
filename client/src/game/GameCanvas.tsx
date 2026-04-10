@@ -5,6 +5,7 @@ import { MainScene } from './scenes/MainScene';
 import { type Tile } from '../types/level';
 import { fetchSave, postSave } from '../api/client';
 import SvgIcon from '../components/SvgIcon';
+import { normalizeBackdropId } from './backdrops';
 
 // ── Game-asset URLs (resolved by Vite at build time) ──────────────────────────
 import soraUrl from '../assets/game-assets/characters/Sora.png?url';
@@ -12,6 +13,7 @@ import landTexUrl from '../assets/game-assets/textures/land.png?url';
 import grassTexUrl from '../assets/game-assets/textures/grass.png?url';
 import demonGrassTexUrl from '../assets/game-assets/textures/demon-grass.png?url';
 import ladderTexUrl from '../assets/game-assets/textures/ladder.png?url';
+import mountainsBackdropUrl from '../assets/mountains.jpg?url';
 
 const GAME_ASSET_URLS = {
   sora: soraUrl,
@@ -21,11 +23,16 @@ const GAME_ASSET_URLS = {
   ladder: ladderTexUrl,
 } as const;
 
+const BACKDROP_ASSET_URLS = {
+  mountains: mountainsBackdropUrl,
+} as const;
+
 interface GameCanvasProps {
   tileData?: Tile[];
   levelId?: string;
   width?: number;
   height?: number;
+  backdropId?: string;
   /** If true, always start from level spawn and ignore saved checkpoint resume. */
   startFresh?: boolean;
   onComplete?: (elapsedMs: number) => void;
@@ -42,6 +49,7 @@ export default function GameCanvas({
   levelId,
   width = 800,
   height = 500,
+  backdropId,
   startFresh = false,
   onComplete,
   socket,
@@ -124,6 +132,8 @@ export default function GameCanvas({
 
       // Pass pre-resolved asset URLs so MainScene.preload() can load them
       game.registry.set('assetUrls', GAME_ASSET_URLS);
+      game.registry.set('backdropAssetUrls', BACKDROP_ASSET_URLS);
+      game.registry.set('backdropId', normalizeBackdropId(backdropId));
 
       // Multiplayer registry values
       game.registry.set('socket', socket ?? null);
@@ -179,7 +189,7 @@ export default function GameCanvas({
       gameRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [width, height, levelId, startFresh, socket, partyCode]);
+  }, [width, height, levelId, backdropId, startFresh, socket, partyCode]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
