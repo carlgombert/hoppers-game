@@ -8,23 +8,13 @@ import SvgIcon from '../components/SvgIcon';
 
 // ── Game-asset URLs (resolved by Vite at build time) ──────────────────────────
 import soraUrl from '../assets/game-assets/characters/Sora.png?url';
-import nickUrl from '../assets/game-assets/characters/Nick.png?url';
 import landTexUrl from '../assets/game-assets/textures/land.png?url';
 import grassTexUrl from '../assets/game-assets/textures/grass.png?url';
 import demonGrassTexUrl from '../assets/game-assets/textures/demon-grass.png?url';
 import ladderTexUrl from '../assets/game-assets/textures/ladder.png?url';
-import { DEFAULT_CHARACTER_KEY } from '../types/characters';
 
-/**
- * Maps every character key to its bundled sprite URL.
- * Add a new entry here whenever a new skin is introduced.
- */
-const CHARACTER_ASSET_URLS: Record<string, string> = {
+const GAME_ASSET_URLS = {
   sora: soraUrl,
-  nick: nickUrl,
-};
-
-const TILE_ASSET_URLS = {
   land: landTexUrl,
   grass: grassTexUrl,
   demon_grass: demonGrassTexUrl,
@@ -38,8 +28,6 @@ interface GameCanvasProps {
   height?: number;
   /** If true, always start from level spawn and ignore saved checkpoint resume. */
   startFresh?: boolean;
-  /** Playable character key (e.g. 'sora', 'nick'). Defaults to DEFAULT_CHARACTER_KEY. */
-  characterKey?: string;
   onComplete?: (elapsedMs: number) => void;
   /** Socket.io socket for multiplayer — omit for solo play */
   socket?: Socket;
@@ -55,7 +43,6 @@ export default function GameCanvas({
   width = 800,
   height = 500,
   startFresh = false,
-  characterKey = DEFAULT_CHARACTER_KEY,
   onComplete,
   socket,
   partyCode,
@@ -135,11 +122,8 @@ export default function GameCanvas({
       game.registry.set('tileData', tileData);
       game.registry.set('savedCheckpoint', savedCheckpoint);
 
-      // Pass pre-resolved asset URLs so MainScene.preload() can load them.
-      // characterUrl resolves the selected skin; falls back to sora if unknown.
-      const characterUrl = CHARACTER_ASSET_URLS[characterKey] ?? CHARACTER_ASSET_URLS[DEFAULT_CHARACTER_KEY];
-      game.registry.set('assetUrls', { ...TILE_ASSET_URLS, character: characterUrl });
-      game.registry.set('characterKey', characterKey);
+      // Pass pre-resolved asset URLs so MainScene.preload() can load them
+      game.registry.set('assetUrls', GAME_ASSET_URLS);
 
       // Multiplayer registry values
       game.registry.set('socket', socket ?? null);
@@ -195,7 +179,7 @@ export default function GameCanvas({
       gameRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [width, height, levelId, startFresh, characterKey, socket, partyCode]);
+  }, [width, height, levelId, startFresh, socket, partyCode]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>

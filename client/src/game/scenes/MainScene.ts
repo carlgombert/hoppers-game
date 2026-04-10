@@ -75,8 +75,7 @@ export class MainScene extends Phaser.Scene {
     // Load game-asset URLs passed from GameCanvas via game.registry
     const urls = this.registry.get('assetUrls') as Record<string, string> | null;
     if (urls) {
-      // Load the selected character sprite under the key 'character'
-      if (urls.character) this.load.image('character', urls.character);
+      if (urls.sora) this.load.image('sora', urls.sora);
       if (urls.land) this.load.image('tile_texture_land', urls.land);
       if (urls.grass) this.load.image('tile_texture_grass', urls.grass);
       if (urls.demon_grass) this.load.image('tile_texture_demon_grass', urls.demon_grass);
@@ -137,8 +136,8 @@ export class MainScene extends Phaser.Scene {
       this.buildFromTileData(DEMO_LEVEL_TILES);
     }
 
-    // Player texture: use the selected character sprite if loaded, otherwise generate a placeholder
-    const playerTexKey = this.textures.exists('character') ? 'character' : 'player';
+    // Player texture: use Sora.png if loaded, otherwise generate a placeholder
+    const playerTexKey = this.textures.exists('sora') ? 'sora' : 'player';
     if (playerTexKey === 'player' && !this.textures.exists('player')) {
       const gfx = this.make.graphics({ x: 0, y: 0 });
       gfx.fillStyle(0x4db8ff, 1);

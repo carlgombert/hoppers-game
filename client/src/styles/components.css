@@ -3875,15 +3875,15 @@ textarea {
   flex-direction: column;
   gap: 0;
   padding: 18px 20px 24px;
-  height: 100%;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
+  min-height: 100%;
+  box-sizing: border-box;
 }
 
 /* ── Settings Module — Framed Pane Unit ──────────────────── */
 
 .xp-settings-module {
   position: relative;
+  isolation: isolate;
   border: 1px solid rgba(154, 163, 185, 0.72);
   border-radius: 11px;
   overflow: hidden;
@@ -3965,7 +3965,10 @@ textarea {
 .xp-settings-module-body {
   position: relative;
   z-index: 1;
+  min-height: 48px;
   padding: 16px 16px 18px;
+  background: linear-gradient(to bottom, #f0f2f9, #e6e9f3);
+  box-shadow: inset 0 1px 3px rgba(7, 10, 19, 0.07);
 }
 
 /* ── Identity Strip ──────────────────────────────────────── */
@@ -4492,106 +4495,4 @@ textarea {
   .touch-controls {
     display: none;
   }
-}
-
-/* ── Character Picker ─────────────────────────────────────────────────────── */
-
-.xp-character-picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 4px;
-}
-
-/* Each character option is a rectangular card with sprite preview + name */
-.xp-character-option {
-  appearance: none;
-  border: 2px solid rgba(152,162,182,.7);
-  border-radius: 6px;
-  padding: 8px;
-  cursor: pointer;
-  background:
-    linear-gradient(to bottom, rgba(255,255,255,.12), rgba(255,255,255,0)),
-    linear-gradient(to bottom, #7a8199, #4e5568);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.32),
-    inset 0 -1px 0 rgba(0,0,0,.22),
-    0 2px 5px rgba(7,10,19,.22);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  width: 100px;
-  transition: border-color 110ms, box-shadow 110ms, transform 110ms;
-  position: relative;
-}
-
-.xp-character-option:hover {
-  border-color: rgba(170,157,255,.72);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.44),
-    inset 0 -1px 0 rgba(0,0,0,.2),
-    0 3px 8px rgba(7,10,19,.28),
-    0 0 0 2px rgba(199,190,250,.24);
-  transform: translateY(-1px);
-}
-
-.xp-character-option:active {
-  transform: translateY(0);
-  box-shadow:
-    inset 0 2px 4px rgba(7,10,19,.22),
-    0 1px 1px rgba(7,10,19,.14);
-}
-
-.xp-character-option.selected {
-  border-color: rgba(151,136,242,.9);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.5),
-    inset 0 -1px 0 rgba(0,0,0,.26),
-    0 0 0 2px rgba(238,233,255,.9),
-    0 0 0 4px rgba(151,136,242,.72),
-    0 3px 10px rgba(7,10,19,.28);
-}
-
-.xp-character-option:disabled {
-  opacity: 0.62;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* Sprite preview frame inside the card */
-.xp-character-option-preview {
-  width: 72px;
-  height: 72px;
-  border-radius: 4px;
-  overflow: hidden;
-  background: rgba(0,0,0,.22);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.xp-character-option-img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  image-rendering: pixelated;
-  pointer-events: none;
-}
-
-.xp-character-option-placeholder {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, rgba(151,136,242,.3), rgba(90,98,117,.3));
-}
-
-.xp-character-option-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(230,225,255,.9);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-  pointer-events: none;
 }

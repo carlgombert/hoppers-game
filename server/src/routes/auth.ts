@@ -30,21 +30,9 @@ function parseAvatarId(value: unknown): number | null {
   return parsed;
 }
 
-/**
- * Validates character_key. Any non-empty string is accepted so new skins can be
- * added without a server deploy. Returns undefined when the field is absent.
- */
-function parseCharacterKey(value: unknown): string | undefined {
-  if (value == null) return undefined;
-  if (typeof value !== 'string' || value.trim() === '') {
-    throw new Error('character_key must be a non-empty string');
-  }
-  return value.trim();
-}
-
 // POST /auth/register
 router.post('/register', authLimiter, async (req: Request, res: Response) => {
-  const { email, password, display_name, avatar_id, character_key } = req.body;
+  const { email, password, display_name, avatar_id } = req.body;
   if (!email || !password || !display_name) {
     res.status(400).json({ error: 'email, password, and display_name are required' });
     return;
@@ -58,14 +46,6 @@ router.post('/register', authLimiter, async (req: Request, res: Response) => {
     return;
   }
 
-  let parsedCharacterKey: string | undefined;
-  try {
-    parsedCharacterKey = parseCharacterKey(character_key);
-  } catch (err: any) {
-    res.status(400).json({ error: err.message });
-    return;
-  }
-
   try {
     const passwordHash = await bcrypt.hash(password, 12);
     const result = await db.query<{
@@ -73,12 +53,11 @@ router.post('/register', authLimiter, async (req: Request, res: Response) => {
       display_name: string;
       email: string;
       avatar_id: number | null;
-      character_key: string;
     }>(
-      `INSERT INTO users (email, password_hash, display_name, avatar_id, character_key)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, email, display_name, avatar_id, character_key`,
-      [email, passwordHash, display_name, parsedAvatarId, parsedCharacterKey ?? 'sora']
+      `INSERT INTO users (email, password_hash, display_name, avatar_id)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, email, display_name, avatar_id`,
+      [email, passwordHash, display_name, parsedAvatarId]
     );
     const user = result.rows[0];
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: JWT_TTL });
@@ -108,9 +87,8 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
       display_name: string;
       password_hash: string;
       avatar_id: number | null;
-      character_key: string;
     }>(
-      `SELECT id, email, display_name, password_hash, avatar_id, character_key FROM users WHERE email = $1`,
+      `SELECT id, email, display_name, password_hash, avatar_id FROM users WHERE email = $1`,
       [email]
     );
 
@@ -134,7 +112,6 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
         email: user.email,
         display_name: user.display_name,
         avatar_id: user.avatar_id,
-        character_key: user.character_key,
       },
     });
   } catch (err) {
@@ -143,7 +120,7 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
   }
 });
 
-// PATCH /auth/me — update avatar and/or character for the authenticated user
+// PATCH /auth/me — update avatar for the authenticated user
 router.patch('/me', authLimiter, requireAuth, async (req: AuthRequest, res: Response) => {
   let parsedAvatarId: number | null;
   try {
@@ -153,44 +130,16 @@ router.patch('/me', authLimiter, requireAuth, async (req: AuthRequest, res: Resp
     return;
   }
 
-  let parsedCharacterKey: string | undefined;
   try {
-    parsedCharacterKey = parseCharacterKey(req.body.character_key);
-  } catch (err: any) {
-    res.status(400).json({ error: err.message });
-    return;
-  }
-
-  try {
-    // Build dynamic SET clause from whichever fields were supplied.
-    const setClauses: string[] = [];
-    const params: unknown[] = [];
-
-    if (req.body.avatar_id !== undefined) {
-      params.push(parsedAvatarId);
-      setClauses.push(`avatar_id = $${params.length}`);
-    }
-    if (parsedCharacterKey !== undefined) {
-      params.push(parsedCharacterKey);
-      setClauses.push(`character_key = $${params.length}`);
-    }
-
-    if (setClauses.length === 0) {
-      res.status(400).json({ error: 'No updatable fields provided' });
-      return;
-    }
-
-    params.push(req.userId);
     const result = await db.query<{
       id: string;
       email: string;
       display_name: string;
       avatar_id: number | null;
-      character_key: string;
     }>(
-      `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${params.length}
-       RETURNING id, email, display_name, avatar_id, character_key`,
-      params
+      `UPDATE users SET avatar_id = $1 WHERE id = $2
+       RETURNING id, email, display_name, avatar_id`,
+      [parsedAvatarId, req.userId]
     );
 
     if (!result.rows[0]) {
