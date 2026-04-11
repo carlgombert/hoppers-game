@@ -4,6 +4,7 @@ import ChromeIcon from '../ChromeIcon';
 import { createParty, joinParty, fetchLevel, getToken, type ApiParty, type ApiLevel } from '../../api/client';
 import { type Level } from '../../types/level';
 import { normalizeBackdropId } from '../../game/backdrops';
+import { useAuth } from '../../auth/AuthContext';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
@@ -17,6 +18,14 @@ interface Props {
   /** User's own levels (for host flow — select which level to play) */
   myLevels: Level[];
   onPartyReady: (payload: PartyReadyPayload) => void;
+}
+
+/** Shape of a party member as broadcast by the server via party:state_update */
+interface PartyMember {
+  userId: string;
+  displayName: string;
+  isReady: boolean;
+  isConnected: boolean;
 }
 
 type LobbyMode = 'choose' | 'host' | 'guest';
@@ -37,6 +46,8 @@ function apiLevelToLevel(l: ApiLevel): Level {
 }
 
 export default function PartyLobby({ myLevels, onPartyReady }: Props) {
+  const { user } = useAuth();
+
   const [mode, setMode] = useState<LobbyMode>('choose');
 
   // Host state
@@ -56,6 +67,10 @@ export default function PartyLobby({ myLevels, onPartyReady }: Props) {
   // Shared party/level state
   const [activeParty, setActiveParty] = useState<ApiParty | null>(null);
   const [activeLevelData, setActiveLevelData] = useState<Level | null>(null);
+
+  // Ready-check state
+  const [members, setMembers] = useState<PartyMember[]>([]);
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
 
@@ -83,12 +98,16 @@ export default function PartyLobby({ myLevels, onPartyReady }: Props) {
     setActiveParty(null);
     setActiveLevelData(null);
     setCopied(false);
+    setMembers([]);
+    setCountdown(null);
   }
 
   // ── Socket setup ──────────────────────────────────────────────────────────
 
   function connectAndWait(code: string, level: Level) {
     disconnectSocket();
+    setMembers([]);
+    setCountdown(null);
 
     const token = getToken() ?? '';
     const socket = io(SOCKET_URL, {
@@ -101,10 +120,35 @@ export default function PartyLobby({ myLevels, onPartyReady }: Props) {
       socket.emit('party:join', { code });
     });
 
-    socket.on('party:ready', () => {
-      // Handoff ownership to App/GameCanvas; avoid disconnecting during PartyLobby unmount.
+    // party:state_update — authoritative member list with ready/connected status
+    socket.on(
+      'party:state_update',
+      ({ members: updatedMembers }: { members: PartyMember[]; hostId: string }) => {
+        setMembers(updatedMembers);
+      }
+    );
+
+    // party:countdown — synchronized countdown tick from server
+    socket.on('party:countdown', ({ count }: { count: number }) => {
+      setCountdown(count);
+    });
+
+    // party:countdown_cancelled — host aborted or member disconnected during countdown
+    socket.on('party:countdown_cancelled', () => {
+      setCountdown(null);
+    });
+
+    // party:launch — all clients transition to game simultaneously
+    socket.on('party:launch', () => {
       socketRef.current = null;
       onPartyReady({ socket, partyCode: code, level });
+    });
+
+    // party:timeout — ready-check stalled for too long; ready states reset server-side
+    socket.on('party:timeout', ({ message }: { message: string }) => {
+      setHostError(message);
+      setGuestError(message);
+      setCountdown(null);
     });
 
     socket.on('party:error', ({ message }: { message: string }) => {
@@ -179,6 +223,134 @@ export default function PartyLobby({ myLevels, onPartyReady }: Props) {
     } finally {
       setGuestBusy(false);
     }
+  }
+
+  // ── Ready-check actions ───────────────────────────────────────────────────
+
+  /** Toggle own ready status. */
+  function handleReadyToggle() {
+    const socket = socketRef.current;
+    if (!socket) return;
+    const code = partyCode || codeInput.trim().toUpperCase();
+    socket.emit('party:ready_toggle', { code });
+  }
+
+  /** Host-only: start the countdown once all members are ready. */
+  function handleLaunch() {
+    const socket = socketRef.current;
+    if (!socket) return;
+    socket.emit('party:start', { code: partyCode });
+  }
+
+  // ── Derived ready-check values ────────────────────────────────────────────
+
+  const isHost = !!activeParty && activeParty.host_id === user?.id;
+  const myMember = members.find((m) => m.userId === user?.id);
+  const myIsReady = myMember?.isReady ?? false;
+  const allReady = members.length > 0 && members.every((m) => m.isReady);
+  const allConnected = members.length > 0 && members.every((m) => m.isConnected);
+
+  // ── Shared ready-check panel (used in both host and guest waiting views) ──
+
+  function renderReadyCheckPanel(code: string, error: string | null) {
+    const isCountingDown = countdown !== null;
+
+    return (
+      <div className="xp-party-readycheck">
+        {/* Countdown overlay */}
+        {isCountingDown && (
+          <div className="xp-party-countdown-overlay">
+            <div className="xp-party-countdown-number">{countdown}</div>
+            <div className="xp-party-countdown-label">Game starting…</div>
+          </div>
+        )}
+
+        {/* Member list */}
+        <div className="xp-pane-heading">PLAYERS</div>
+        {members.length === 0 ? (
+          <div className="xp-party-waiting-banner">
+            <div className="xp-party-waiting-dots" aria-hidden="true">
+              <span /><span /><span />
+            </div>
+            <div className="xp-party-waiting-text">
+              {mode === 'host'
+                ? 'Waiting for a friend to join…'
+                : `Joined party ${code}. Waiting for host…`}
+            </div>
+            {activeLevelData && (
+              <div className="xp-party-waiting-level">
+                Level: <strong>{activeLevelData.title || 'Untitled Level'}</strong>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="xp-party-member-list">
+            {members.map((m) => (
+              <div key={m.userId} className={`xp-party-member-row${m.userId === user?.id ? ' xp-party-member-row--self' : ''}`}>
+                <div className={`xp-party-member-status-dot ${m.isConnected ? (m.isReady ? 'ready' : 'connected') : 'offline'}`} aria-hidden="true" />
+                <div className="xp-party-member-info">
+                  <span className="xp-party-member-name">
+                    {m.displayName}
+                    {m.userId === user?.id && <span className="xp-party-member-you"> (you)</span>}
+                    {m.userId === activeParty?.host_id && <span className="xp-party-member-host-badge">HOST</span>}
+                  </span>
+                  <span className="xp-party-member-ready-label">
+                    {!m.isConnected ? 'Offline' : m.isReady ? 'Ready' : 'Not Ready'}
+                  </span>
+                </div>
+                {m.isReady && <div className="xp-party-member-checkmark" aria-label="Ready" />}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Status summary */}
+        {members.length > 0 && !allConnected && (
+          <div className="xp-party-member-status-note">
+            Waiting for all players to connect…
+          </div>
+        )}
+        {members.length > 0 && allConnected && !allReady && (
+          <div className="xp-party-member-status-note">
+            All players connected — toggle ready when you are set.
+          </div>
+        )}
+        {members.length > 0 && allReady && !isHost && (
+          <div className="xp-party-member-status-note xp-party-member-status-note--go">
+            All ready! Waiting for host to launch…
+          </div>
+        )}
+
+        {error && <div className="xp-party-error">{error}</div>}
+
+        {/* Action buttons */}
+        <div className="xp-party-actions">
+          {/* Ready toggle — shown for everyone who is not the sole host controlling launch */}
+          {members.length > 0 && !isCountingDown && (
+            <button
+              type="button"
+              className={`xp-btn ${myIsReady ? 'ghost' : 'primary'} xp-party-ready-btn`}
+              onClick={handleReadyToggle}
+            >
+              {myIsReady ? 'Cancel Ready' : 'Ready Up'}
+            </button>
+          )}
+
+          {/* Launch — host only, only when all players are ready */}
+          {isHost && !isCountingDown && (
+            <button
+              type="button"
+              className="xp-btn primary xp-party-launch-btn"
+              disabled={!allReady || !allConnected}
+              onClick={handleLaunch}
+              title={!allReady ? 'All players must be ready before launching' : undefined}
+            >
+              Launch Game
+            </button>
+          )}
+        </div>
+      </div>
+    );
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -306,21 +478,7 @@ export default function PartyLobby({ myLevels, onPartyReady }: Props) {
               </button>
             </div>
 
-            <div className="xp-party-waiting-banner">
-              <div className="xp-party-waiting-dots" aria-hidden="true">
-                <span /><span /><span />
-              </div>
-              <div className="xp-party-waiting-text">
-                Waiting for a friend to join&hellip;
-              </div>
-              {activeLevelData && (
-                <div className="xp-party-waiting-level">
-                  Level: <strong>{activeLevelData.title || 'Untitled Level'}</strong>
-                </div>
-              )}
-            </div>
-
-            {hostError && <div className="xp-party-error">{hostError}</div>}
+            {renderReadyCheckPanel(partyCode, hostError)}
           </div>
         )}
       </div>
@@ -376,21 +534,7 @@ export default function PartyLobby({ myLevels, onPartyReady }: Props) {
 
       {guestStep === 'waiting' && (
         <div className="xp-party-step">
-          <div className="xp-party-waiting-banner">
-            <div className="xp-party-waiting-dots" aria-hidden="true">
-              <span /><span /><span />
-            </div>
-            <div className="xp-party-waiting-text">
-              Joined party <strong>{codeInput.trim().toUpperCase()}</strong>. Waiting for host&hellip;
-            </div>
-            {activeLevelData && (
-              <div className="xp-party-waiting-level">
-                Level: <strong>{activeLevelData.title || 'Untitled Level'}</strong>
-              </div>
-            )}
-          </div>
-
-          {guestError && <div className="xp-party-error">{guestError}</div>}
+          {renderReadyCheckPanel(codeInput.trim().toUpperCase(), guestError)}
         </div>
       )}
     </div>
