@@ -3862,202 +3862,6 @@ textarea {
     opacity: 1;
     transform: none;
   }
-  .xp-party-countdown-number {
-    animation: none;
-  }
-}
-
-/* ── Ready-check panel ───────────────────────────────────── */
-
-.xp-party-readycheck {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  position: relative;
-}
-
-/* Member list */
-
-.xp-party-member-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.xp-party-member-row {
-  display: grid;
-  grid-template-columns: 10px 1fr auto;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(154,163,184,0.52);
-  background:
-    linear-gradient(to bottom, rgba(255,255,255,0.88), rgba(255,255,255,0)),
-    linear-gradient(to bottom, #f3f5fd, #dde3f0);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.94),
-    inset 0 -1px 0 rgba(80,90,114,0.22),
-    0 1px 3px rgba(7,10,19,0.12);
-  font-size: 12px;
-}
-
-.xp-party-member-row--self {
-  border-color: rgba(143,125,184,0.44);
-  background:
-    linear-gradient(to bottom, rgba(255,255,255,0.88), rgba(255,255,255,0)),
-    linear-gradient(to bottom, #eae8f8, #d4cff0);
-}
-
-/* Status dot: offline | connected (not ready) | ready */
-
-.xp-party-member-status-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex: 0 0 10px;
-  box-shadow: 0 0 4px rgba(0,0,0,0.22);
-}
-
-.xp-party-member-status-dot.offline {
-  background: #9a9aab;
-}
-
-.xp-party-member-status-dot.connected {
-  background: #e07b3c;
-  box-shadow: 0 0 6px rgba(224,123,60,0.4);
-}
-
-.xp-party-member-status-dot.ready {
-  background: #4caf74;
-  box-shadow: 0 0 6px rgba(76,175,116,0.4);
-}
-
-.xp-party-member-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.xp-party-member-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--xp-text-on-light, #2a2b39);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.xp-party-member-you {
-  font-size: 10px;
-  font-weight: 400;
-  color: var(--xp-text-muted, #67697d);
-}
-
-.xp-party-member-host-badge {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  color: rgba(100,80,150,0.9);
-  background:
-    linear-gradient(to bottom, rgba(255,255,255,0.6), rgba(255,255,255,0)),
-    linear-gradient(to bottom, #ddd8f4, #c8c1ec);
-  border: 1px solid rgba(143,125,184,0.44);
-  border-radius: 5px;
-  padding: 1px 5px;
-}
-
-.xp-party-member-ready-label {
-  font-size: 10px;
-  color: var(--xp-text-muted, #67697d);
-}
-
-.xp-party-member-checkmark {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 35% 30%, rgba(255,255,255,0.72) 0%, transparent 40%),
-    linear-gradient(to bottom, #6ac98a, #4caf74);
-  border: 1px solid rgba(50,140,80,0.5);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.6),
-    0 1px 3px rgba(0,0,0,0.2),
-    0 0 6px rgba(76,175,116,0.28);
-}
-
-/* Status note below member list */
-
-.xp-party-member-status-note {
-  font-size: 11px;
-  color: var(--xp-text-muted, #67697d);
-  text-align: center;
-  padding: 6px 12px;
-}
-
-.xp-party-member-status-note--go {
-  color: #367a52;
-  font-weight: 600;
-}
-
-/* Ready-up and launch buttons */
-
-.xp-party-ready-btn {
-  flex: 1;
-}
-
-.xp-party-launch-btn {
-  flex: 1;
-}
-
-/* Countdown overlay — rendered inside .xp-party-readycheck */
-
-.xp-party-countdown-overlay {
-  position: absolute;
-  inset: -16px;
-  z-index: 10;
-  border-radius: 14px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  background:
-    linear-gradient(to bottom, rgba(26,24,48,0.94), rgba(18,16,36,0.97));
-  border: 1px solid rgba(143,125,184,0.36);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.08),
-    0 8px 32px rgba(0,0,0,0.5);
-}
-
-.xp-party-countdown-number {
-  font-size: 72px;
-  font-weight: 900;
-  line-height: 1;
-  color: var(--xp-orchid-soft, #b9add6);
-  text-shadow:
-    0 0 40px rgba(185,173,214,0.5),
-    0 4px 10px rgba(0,0,0,0.6);
-  animation: xp-countdown-pop 1s ease-out;
-}
-
-.xp-party-countdown-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(220,225,244,0.72);
-  letter-spacing: 0.4px;
-}
-
-@keyframes xp-countdown-pop {
-  0%   { transform: scale(1.4); opacity: 0; }
-  20%  { transform: scale(1);   opacity: 1; }
-  80%  { transform: scale(1);   opacity: 1; }
-  100% { transform: scale(0.8); opacity: 0; }
 }
 /* ============================================================
    Settings Page
@@ -4071,15 +3875,15 @@ textarea {
   flex-direction: column;
   gap: 0;
   padding: 18px 20px 24px;
-  height: 100%;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
+  min-height: 100%;
+  box-sizing: border-box;
 }
 
 /* ── Settings Module — Framed Pane Unit ──────────────────── */
 
 .xp-settings-module {
   position: relative;
+  isolation: isolate;
   border: 1px solid rgba(154, 163, 185, 0.72);
   border-radius: 11px;
   overflow: hidden;
@@ -4161,7 +3965,10 @@ textarea {
 .xp-settings-module-body {
   position: relative;
   z-index: 1;
+  min-height: 48px;
   padding: 16px 16px 18px;
+  background: linear-gradient(to bottom, #f0f2f9, #e6e9f3);
+  box-shadow: inset 0 1px 3px rgba(7, 10, 19, 0.07);
 }
 
 /* ── Identity Strip ──────────────────────────────────────── */
@@ -4688,4 +4495,106 @@ textarea {
   .touch-controls {
     display: none;
   }
+}
+
+/* ── Character Picker ─────────────────────────────────────────────────────── */
+
+.xp-character-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+/* Each character option is a rectangular card with sprite preview + name */
+.xp-character-option {
+  appearance: none;
+  border: 2px solid rgba(152,162,182,.7);
+  border-radius: 6px;
+  padding: 8px;
+  cursor: pointer;
+  background:
+    linear-gradient(to bottom, rgba(255,255,255,.12), rgba(255,255,255,0)),
+    linear-gradient(to bottom, #7a8199, #4e5568);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.32),
+    inset 0 -1px 0 rgba(0,0,0,.22),
+    0 2px 5px rgba(7,10,19,.22);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100px;
+  transition: border-color 110ms, box-shadow 110ms, transform 110ms;
+  position: relative;
+}
+
+.xp-character-option:hover {
+  border-color: rgba(170,157,255,.72);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.44),
+    inset 0 -1px 0 rgba(0,0,0,.2),
+    0 3px 8px rgba(7,10,19,.28),
+    0 0 0 2px rgba(199,190,250,.24);
+  transform: translateY(-1px);
+}
+
+.xp-character-option:active {
+  transform: translateY(0);
+  box-shadow:
+    inset 0 2px 4px rgba(7,10,19,.22),
+    0 1px 1px rgba(7,10,19,.14);
+}
+
+.xp-character-option.selected {
+  border-color: rgba(151,136,242,.9);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.5),
+    inset 0 -1px 0 rgba(0,0,0,.26),
+    0 0 0 2px rgba(238,233,255,.9),
+    0 0 0 4px rgba(151,136,242,.72),
+    0 3px 10px rgba(7,10,19,.28);
+}
+
+.xp-character-option:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Sprite preview frame inside the card */
+.xp-character-option-preview {
+  width: 72px;
+  height: 72px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: rgba(0,0,0,.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.xp-character-option-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.xp-character-option-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(151,136,242,.3), rgba(90,98,117,.3));
+}
+
+.xp-character-option-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(230,225,255,.9);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  pointer-events: none;
 }

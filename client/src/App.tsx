@@ -23,6 +23,7 @@ import {
 } from './api/client';
 import { type Level } from './types/level';
 import { normalizeBackdropId } from './game/backdrops';
+import { DEFAULT_CHARACTER_KEY } from './types/characters';
 
 type NavId = 'build' | 'levels' | 'browse' | 'party' | 'settings';
 type ViewId = NavId | 'game';
@@ -343,6 +344,7 @@ export default function App() {
                 levelId={playingLevel?.id}
                 backdropId={playingLevel?.backdrop_id}
                 startFresh={startFresh}
+                characterKey={user.character_key ?? DEFAULT_CHARACTER_KEY}
                 onComplete={handleLevelComplete}
                 socket={partySocket ?? undefined}
                 partyCode={partyCode ?? undefined}
