@@ -9,9 +9,8 @@ type Mode = 'login' | 'register';
 
 export default function AuthGate({ onAuth }: Props) {
   const [mode, setMode] = useState<Mode>('login');
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -22,14 +21,9 @@ export default function AuthGate({ onAuth }: Props) {
     try {
       let result: { token: string; user: AuthUser };
       if (mode === 'login') {
-        result = await login(email, password);
+        result = await login(username, password);
       } else {
-        if (!displayName.trim()) {
-          setError('Display name is required.');
-          setLoading(false);
-          return;
-        }
-        result = await register(email, password, displayName.trim());
+        result = await register(username, password);
       }
       onAuth(result.user, result.token);
     } catch (err) {
@@ -53,35 +47,17 @@ export default function AuthGate({ onAuth }: Props) {
         </div>
         <div className="xp-auth-body">
           <form className="xp-auth-form" onSubmit={handleSubmit} noValidate>
-            {mode === 'register' && (
-              <div className="xp-auth-field">
-                <label className="xp-auth-label" htmlFor="auth-name">
-                  Display Name
-                </label>
-                <input
-                  id="auth-name"
-                  type="text"
-                  className="xp-input"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  autoComplete="nickname"
-                  required
-                  maxLength={40}
-                />
-              </div>
-            )}
-
             <div className="xp-auth-field">
-              <label className="xp-auth-label" htmlFor="auth-email">
-                Email
+              <label className="xp-auth-label" htmlFor="auth-username">
+                Username
               </label>
               <input
-                id="auth-email"
-                type="email"
+                id="auth-username"
+                type="text"
                 className="xp-input"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
                 required
               />
             </div>
