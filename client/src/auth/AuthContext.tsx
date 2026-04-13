@@ -34,7 +34,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 const TOKEN_KEY = 'hoppers_token';
 const USER_KEY = 'hoppers_user';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '';
+// Use the same fallback as our API client
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 async function apiFetch(path: string, options?: RequestInit): Promise<Response> {
   return fetch(`${API_BASE}${path}`, {
