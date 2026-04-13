@@ -1,4 +1,5 @@
-import { Pool } from 'pg';
+const dbEnvKeys = Object.keys(process.env).filter(k => k.startsWith('PG') || k.startsWith('POSTGRES') || k === 'DATABASE_URL');
+console.log(`🔍 Found ${dbEnvKeys.length} DB variables: [${dbEnvKeys.join(', ')}]`);
 
 const connectionString = process.env.DATABASE_URL;
 

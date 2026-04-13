@@ -1,5 +1,8 @@
 import { createClient } from 'redis';
 
+const redisEnvKeys = Object.keys(process.env).filter(k => k.startsWith('REDIS'));
+console.log(`Found ${redisEnvKeys.length} Redis variables: [${redisEnvKeys.join(', ')}]`);
+
 let redisUrl = process.env.REDIS_URL || process.env.REDIS_PUBLIC_URL;
 
 if (!redisUrl && process.env.REDISHOST) {
@@ -10,7 +13,7 @@ if (!redisUrl && process.env.REDISHOST) {
 
 if (redisUrl) {
   const masked = redisUrl.replace(/:([^:@]+)@/, ':****@');
-  console.log(`📡 Connecting to Redis at: ${masked}`);
+  console.log(`Connecting to Redis at: ${masked}`);
 }
 
 export const redis = createClient({
