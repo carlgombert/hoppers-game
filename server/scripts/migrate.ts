@@ -2,12 +2,21 @@ import fs from 'fs';
 import path from 'path';
 import { Pool } from 'pg';
 
+const connectionString = process.env.DATABASE_URL;
+
+if (connectionString) {
+  const masked = connectionString.replace(/:([^:@]+)@/, ':****@');
+  console.log(`📡 Migrating via DATABASE_URL: ${masked}`);
+}
+
 const pool = new Pool({
-  host: process.env.DB_HOST ?? 'localhost',
-  port: Number(process.env.DB_PORT ?? 5432),
-  user: process.env.DB_USER ?? 'hoppers',
-  password: process.env.DB_PASSWORD ?? 'hoppers_dev',
-  database: process.env.DB_NAME ?? 'hoppers',
+  connectionString: connectionString,
+  // Fallback for local dev if DATABASE_URL is missing
+  host: process.env.DB_HOST || 'localhost',
+  port: Number(process.env.DB_PORT || 5432),
+  user: process.env.DB_USER || 'hoppers',
+  password: process.env.DB_PASSWORD || 'hoppers_dev',
+  database: process.env.DB_NAME || 'hoppers',
 });
 
 async function migrate() {
