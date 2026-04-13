@@ -1,7 +1,20 @@
 import { createClient } from 'redis';
 
+let redisUrl = process.env.REDIS_URL || process.env.REDIS_PUBLIC_URL;
+
+if (!redisUrl && process.env.REDISHOST) {
+  const user = process.env.REDISUSER ? `${process.env.REDISUSER}:` : '';
+  const pass = (process.env.REDISPASSWORD || process.env.REDIS_PASSWORD) ? `${process.env.REDISPASSWORD || process.env.REDIS_PASSWORD}@` : '';
+  redisUrl = `redis://${user}${pass}${process.env.REDISHOST}:${process.env.REDISPORT ?? 6379}`;
+}
+
+if (redisUrl) {
+  const masked = redisUrl.replace(/:([^:@]+)@/, ':****@');
+  console.log(`📡 Connecting to Redis at: ${masked}`);
+}
+
 export const redis = createClient({
-  url: process.env.REDIS_URL ?? 'redis://localhost:6379',
+  url: redisUrl ?? 'redis://localhost:6379',
 });
 
 redis.on('error', (err) => console.error('Redis error:', err));

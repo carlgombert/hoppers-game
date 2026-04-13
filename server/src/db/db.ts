@@ -1,9 +1,16 @@
 import { Pool } from 'pg';
 
+const connectionString = process.env.DATABASE_URL;
+
+if (connectionString) {
+  const masked = connectionString.replace(/:([^:@]+)@/, ':****@');
+  console.log(`📡 Connecting via DATABASE_URL: ${masked}`);
+} else if (process.env.PGHOST) {
+  console.log(`📡 Connecting via PGHOST: ${process.env.PGHOST}:${process.env.PGPORT} [DB: ${process.env.PGDATABASE}]`);
+}
+
 export const db = new Pool({
-  host: process.env.DB_HOST ?? 'localhost',
-  port: Number(process.env.DB_PORT ?? 5432),
-  user: process.env.DB_USER ?? 'hoppers',
-  password: process.env.DB_PASSWORD ?? 'hoppers_dev',
-  database: process.env.DB_NAME ?? 'hoppers',
+  connectionString: connectionString,
+  // If connectionString is missing, pg Pool automatically 
+  // uses PGHOST, PGUSER, PGPASSWORD, PGDATABASE, and PGPORT
 });
