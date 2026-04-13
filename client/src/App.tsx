@@ -344,7 +344,7 @@ export default function App() {
             {user.avatar_id ? (
               <img
                 src={getAvatarSrc(user.avatar_id)}
-                alt={user.display_name}
+                alt={user.username}
                 className="xp-user-avatar-img"
               />
             ) : (
@@ -352,7 +352,7 @@ export default function App() {
             )}
           </div>
           <div className="xp-user-info">
-            <span className="xp-user-name">{user.display_name}</span>
+            <span className="xp-user-name">{user.username}</span>
             <span className="xp-user-status">
               {levels.length} {levels.length === 1 ? 'level' : 'levels'} built
             </span>
@@ -448,7 +448,7 @@ export default function App() {
                 backdropId={playingLevel?.backdrop_id}
                 startFresh={startFresh}
                 characterKey={user.character_key ?? DEFAULT_CHARACTER_KEY}
-                playerDisplayName={user.display_name}
+                playerDisplayName={user.username}
                 onComplete={handleLevelComplete}
                 socket={partySocket ?? undefined}
                 partyCode={partyCode ?? undefined}

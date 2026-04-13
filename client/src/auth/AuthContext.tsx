@@ -9,8 +9,7 @@ import {
 
 export interface AuthUser {
   id: string;
-  email: string;
-  display_name: string;
+  username: string;
   avatar_id: number | null;
   /** Persisted playable character key (e.g. 'sora', 'nick'). Defaults to 'sora'. */
   character_key: string;
@@ -23,8 +22,8 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, display_name: string, avatar_id?: number | null) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
+  register: (username: string, password: string, avatar_id?: number | null) => Promise<void>;
   logout: () => Promise<void>;
   updateAvatar: (avatar_id: number) => Promise<void>;
   updateCharacter: (character_key: string) => Promise<void>;
@@ -70,12 +69,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state.token, state.user]);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (username: string, password: string) => {
     setState((s) => ({ ...s, isLoading: true }));
     try {
       const res = await apiFetch('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, password }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -90,16 +89,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const register = useCallback(async (
-    email: string,
+    username: string,
     password: string,
-    display_name: string,
     avatar_id?: number | null,
   ) => {
     setState((s) => ({ ...s, isLoading: true }));
     try {
       const res = await apiFetch('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ email, password, display_name, avatar_id: avatar_id ?? null }),
+        body: JSON.stringify({ username, password, avatar_id: avatar_id ?? null }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));

@@ -10,8 +10,7 @@ interface CreateAccountScreenProps {
 
 export default function CreateAccountScreen({ onSwitchToLogin }: CreateAccountScreenProps) {
   const { register, isLoading } = useAuth();
-  const [displayName, setDisplayName] = useState('');
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [avatarId, setAvatarId] = useState<number | null>(null);
@@ -35,7 +34,7 @@ export default function CreateAccountScreen({ onSwitchToLogin }: CreateAccountSc
     }
 
     try {
-      await register(email, password, displayName, avatarId);
+      await register(username, password, avatarId);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     }
@@ -77,36 +76,19 @@ export default function CreateAccountScreen({ onSwitchToLogin }: CreateAccountSc
               />
 
               <div className="xp-auth-field-group" style={{ marginTop: '18px' }}>
-                <label htmlFor="reg-name" className="xp-auth-label">
-                  Display name
+                <label htmlFor="reg-username" className="xp-auth-label">
+                  Username
                 </label>
                 <input
-                  id="reg-name"
+                  id="reg-username"
                   type="text"
-                  autoComplete="nickname"
+                  autoComplete="username"
                   required
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   className="xp-auth-input"
                   placeholder="HopperFan99"
                   maxLength={48}
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div className="xp-auth-field-group">
-                <label htmlFor="reg-email" className="xp-auth-label">
-                  Email address
-                </label>
-                <input
-                  id="reg-email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="xp-auth-input"
-                  placeholder="your@email.com"
                   disabled={isLoading}
                 />
               </div>

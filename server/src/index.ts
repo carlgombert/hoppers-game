@@ -57,7 +57,7 @@ async function broadcastPartyState(
   hostId: string,
 ): Promise<void> {
   const membersResult = await db.query(
-    `SELECT pm.user_id, pm.is_ready, pm.socket_id, u.display_name
+    `SELECT pm.user_id, pm.is_ready, pm.socket_id, u.username
      FROM party_members pm
      JOIN users u ON u.id = pm.user_id
      WHERE pm.party_id = $1`,
@@ -68,7 +68,7 @@ async function broadcastPartyState(
 
   const members = (membersResult.rows as any[]).map((m: any) => ({
     userId: m.user_id,
-    displayName: m.display_name,
+    username: m.username,
     isReady: m.is_ready,
     isConnected: m.socket_id ? (room?.has(m.socket_id) ?? false) : false,
   }));
@@ -167,13 +167,13 @@ async function main() {
   io.on('connection', (socket: Socket & { userId?: string }) => {
     const userId = socket.userId ?? '';
     let characterKey = 'sora';
-    let displayName = 'Player';
+    let username = 'Player';
     console.log(`Socket connected: ${socket.id} (user ${userId})`);
 
     // Cache the authenticated user's selected character for lightweight move events.
     void db
-      .query<{ character_key: string; display_name: string }>(
-        `SELECT character_key, display_name FROM users WHERE id = $1`,
+      .query<{ character_key: string; username: string }>(
+        `SELECT character_key, username FROM users WHERE id = $1`,
         [userId],
       )
       .then((result: any) => {
@@ -182,9 +182,9 @@ async function main() {
         if (typeof nextKey === 'string' && nextKey.trim().length > 0) {
           characterKey = nextKey.trim();
         }
-        const nextDisplayName = row?.display_name;
-        if (typeof nextDisplayName === 'string' && nextDisplayName.trim().length > 0) {
-          displayName = nextDisplayName.trim();
+        const nextUsername = row?.username;
+        if (typeof nextUsername === 'string' && nextUsername.trim().length > 0) {
+          username = nextUsername.trim();
         }
       })
       .catch((err: any) => {
@@ -379,7 +379,7 @@ async function main() {
         socket.to(payload.code).emit('player:update', {
           id: socket.id,
           userId,
-          displayName,
+          username,
           x: payload.x,
           y: payload.y,
           state: payload.state,

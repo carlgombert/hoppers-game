@@ -119,7 +119,7 @@ router.get('/', readLimiter, async (req: Request, res: Response) => {
   try {
     const result = await db.query(
       `SELECT l.id, l.title, l.description, l.thumbnail, l.backdrop_id, l.created_at,
-              u.display_name AS author
+              u.username AS author
        FROM levels l
        JOIN users u ON u.id = l.owner_id
        WHERE l.published = TRUE
@@ -156,7 +156,7 @@ router.get('/mine', requireAuth, async (req: AuthRequest, res: Response) => {
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const result = await db.query(
-      `SELECT l.*, u.display_name AS author
+      `SELECT l.*, u.username AS author
        FROM levels l JOIN users u ON u.id = l.owner_id
        WHERE l.id = $1`,
       [req.params.id]
@@ -317,7 +317,7 @@ router.post('/:id/fork', writeLimiter, requireAuth, async (req: AuthRequest, res
 router.get('/:id/leaderboard', readLimiter, async (req: Request, res: Response) => {
   try {
     const result = await db.query(
-      `SELECT u.display_name,
+      `SELECT u.username,
               (ls.checkpoint_state->>'elapsed_ms')::int AS elapsed_ms
        FROM level_saves ls
        JOIN users u ON u.id = ls.user_id

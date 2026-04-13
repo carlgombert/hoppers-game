@@ -134,7 +134,7 @@ export default function SettingsPage() {
               {user.avatar_id ? (
                 <img
                   src={getAvatarSrc(user.avatar_id)}
-                  alt={user.display_name}
+                  alt={user.username}
                   className="xp-settings-identity-avatar-img"
                   draggable={false}
                 />
@@ -143,8 +143,7 @@ export default function SettingsPage() {
               )}
             </div>
             <div className="xp-settings-identity-info">
-              <span className="xp-settings-identity-name">{user.display_name}</span>
-              <span className="xp-settings-identity-email">{user.email}</span>
+              <span className="xp-settings-identity-name">{user.username}</span>
             </div>
           </div>
 
@@ -202,13 +201,8 @@ export default function SettingsPage() {
         <div className="xp-settings-module-header">ACCOUNT INFO</div>
         <div className="xp-settings-module-body">
           <div className="xp-settings-info-row">
-            <span className="xp-settings-info-label">Display name</span>
-            <span className="xp-settings-info-value">{user.display_name}</span>
-          </div>
-          <div className="xp-settings-info-separator" aria-hidden="true" />
-          <div className="xp-settings-info-row">
-            <span className="xp-settings-info-label">Email</span>
-            <span className="xp-settings-info-value">{user.email}</span>
+            <span className="xp-settings-info-label">Username</span>
+            <span className="xp-settings-info-value">{user.username}</span>
           </div>
         </div>
       </div>

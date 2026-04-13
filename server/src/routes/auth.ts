@@ -44,9 +44,9 @@ function parseCharacterKey(value: unknown): string | undefined {
 
 // POST /auth/register
 router.post('/register', authLimiter, async (req: Request, res: Response) => {
-  const { email, password, display_name, avatar_id, character_key } = req.body;
-  if (!email || !password || !display_name) {
-    res.status(400).json({ error: 'email, password, and display_name are required' });
+  const { username, password, avatar_id, character_key } = req.body;
+  if (!username || !password) {
+    res.status(400).json({ error: 'username and password are required' });
     return;
   }
 
@@ -70,22 +70,21 @@ router.post('/register', authLimiter, async (req: Request, res: Response) => {
     const passwordHash = await bcrypt.hash(password, 12);
     const result = await db.query<{
       id: string;
-      display_name: string;
-      email: string;
+      username: string;
       avatar_id: number | null;
       character_key: string;
     }>(
-      `INSERT INTO users (email, password_hash, display_name, avatar_id, character_key)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, email, display_name, avatar_id, character_key`,
-      [email, passwordHash, display_name, parsedAvatarId, parsedCharacterKey ?? 'sora']
+      `INSERT INTO users (username, password_hash, avatar_id, character_key)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, username, avatar_id, character_key`,
+      [username, passwordHash, parsedAvatarId, parsedCharacterKey ?? 'sora']
     );
     const user = result.rows[0];
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: JWT_TTL });
     res.status(201).json({ token, user });
   } catch (err: any) {
     if (err.code === '23505') {
-      res.status(409).json({ error: 'Email already registered' });
+      res.status(409).json({ error: 'Username already taken' });
     } else {
       console.error(err);
       res.status(500).json({ error: 'Server error' });
@@ -95,23 +94,22 @@ router.post('/register', authLimiter, async (req: Request, res: Response) => {
 
 // POST /auth/login
 router.post('/login', authLimiter, async (req: Request, res: Response) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    res.status(400).json({ error: 'email and password are required' });
+  const { username, password } = req.body;
+  if (!username || !password) {
+    res.status(400).json({ error: 'username and password are required' });
     return;
   }
 
   try {
     const result = await db.query<{
       id: string;
-      email: string;
-      display_name: string;
+      username: string;
       password_hash: string;
       avatar_id: number | null;
       character_key: string;
     }>(
-      `SELECT id, email, display_name, password_hash, avatar_id, character_key FROM users WHERE email = $1`,
-      [email]
+      `SELECT id, username, password_hash, avatar_id, character_key FROM users WHERE username = $1`,
+      [username]
     );
 
     const user = result.rows[0];
@@ -131,8 +129,7 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
       token,
       user: {
         id: user.id,
-        email: user.email,
-        display_name: user.display_name,
+        username: user.username,
         avatar_id: user.avatar_id,
         character_key: user.character_key,
       },
@@ -183,13 +180,12 @@ router.patch('/me', authLimiter, requireAuth, async (req: AuthRequest, res: Resp
     params.push(req.userId);
     const result = await db.query<{
       id: string;
-      email: string;
-      display_name: string;
+      username: string;
       avatar_id: number | null;
       character_key: string;
     }>(
       `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${params.length}
-       RETURNING id, email, display_name, avatar_id, character_key`,
+       RETURNING id, username, avatar_id, character_key`,
       params
     );
 

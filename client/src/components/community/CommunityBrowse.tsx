@@ -237,7 +237,7 @@ export default function CommunityBrowse({ onPlay, onViewDetails, onCopy, forking
                   {lbEntries.map((e, i) => (
                   <li key={i} className="xp-lb-row">
                     <span className="xp-lb-rank">{i + 1}.</span>
-                    <span className="xp-lb-name">{e.display_name}</span>
+                    <span className="xp-lb-name">{e.username}</span>
                     <span className="xp-lb-time" style={{ color: 'black' }}>{formatTime(e.elapsed_ms)}</span>
                   </li>
                   ))}

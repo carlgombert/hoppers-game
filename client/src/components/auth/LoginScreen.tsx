@@ -9,7 +9,7 @@ interface LoginScreenProps {
 
 export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
   const { login, isLoading } = useAuth();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -17,7 +17,7 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
     e.preventDefault();
     setError(null);
     try {
-      await login(email, password);
+      await login(username, password);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     }
@@ -51,18 +51,18 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
 
             <form onSubmit={handleSubmit} noValidate>
               <div className="xp-auth-field-group">
-                <label htmlFor="login-email" className="xp-auth-label">
-                  Email address
+                <label htmlFor="login-username" className="xp-auth-label">
+                  Username
                 </label>
                 <input
-                  id="login-email"
-                  type="email"
-                  autoComplete="email"
+                  id="login-username"
+                  type="text"
+                  autoComplete="username"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   className="xp-auth-input"
-                  placeholder="your@email.com"
+                  placeholder="HopperFan99"
                   disabled={isLoading}
                 />
               </div>

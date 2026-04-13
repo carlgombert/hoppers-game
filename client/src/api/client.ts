@@ -16,12 +16,12 @@ export function clearToken(): void {
   localStorage.removeItem('hoppers_token');
 }
 
-export function getStoredDisplayName(): string | null {
-  return localStorage.getItem('hoppers_display_name');
+export function getStoredUsername(): string | null {
+  return localStorage.getItem('hoppers_username');
 }
 
-export function setStoredDisplayName(name: string): void {
-  localStorage.setItem('hoppers_display_name', name);
+export function setStoredUsername(name: string): void {
+  localStorage.setItem('hoppers_username', name);
 }
 
 function authHeaders(): HeadersInit {
@@ -58,32 +58,30 @@ export class ApiError extends Error {
 
 export interface AuthUser {
   id: string;
-  email: string;
-  display_name: string;
+  username: string;
   character_key?: string;
 }
 
 export async function register(
-  email: string,
+  username: string,
   password: string,
-  displayName: string,
 ): Promise<{ token: string; user: AuthUser }> {
   const res = await fetch(`${API_BASE}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, display_name: displayName }),
+    body: JSON.stringify({ username, password }),
   });
   return handleResponse(res);
 }
 
 export async function login(
-  email: string,
+  username: string,
   password: string,
 ): Promise<{ token: string; user: AuthUser }> {
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ username, password }),
   });
   return handleResponse(res);
 }
@@ -265,7 +263,7 @@ export async function forkLevel(id: string): Promise<ApiLevel> {
 // ── Leaderboard ───────────────────────────────────────────────────────────────
 
 export interface LeaderboardEntry {
-  display_name: string;
+  username: string;
   elapsed_ms: number;
 }
 
