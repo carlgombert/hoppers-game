@@ -1,6 +1,6 @@
 import { type Tile } from '../types/level';
 
-let API_BASE = import.meta.env.VITE_API_URL || 'https://hoppers-game-production.up.railway.app';
+let API_BASE = (import.meta.env.VITE_API_URL || 'https://hoppers-game-production.up.railway.app').replace(/\/$/, '');
 if (API_BASE && !API_BASE.startsWith('http')) {
   API_BASE = `https://${API_BASE}`;
 }

@@ -35,7 +35,7 @@ const TOKEN_KEY = 'hoppers_token';
 const USER_KEY = 'hoppers_user';
 
 // Use the same fallback as our API client
-let API_BASE = import.meta.env.VITE_API_URL || 'https://hoppers-game-production.up.railway.app';
+let API_BASE = (import.meta.env.VITE_API_URL || 'https://hoppers-game-production.up.railway.app').replace(/\/$/, '');
 if (API_BASE && !API_BASE.startsWith('http')) {
   API_BASE = `https://${API_BASE}`;
 }
@@ -95,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const body = (await res.json()) as { token: string; user: AuthUser };
       setState({ user: body.user, token: body.token, isLoading: false });
     } catch (err) {
-      console.error('🔥 Auth Error Details (Login):', err);
+      console.error('Auth Error Details (Login):', err);
       setState((s) => ({ ...s, isLoading: false }));
       throw err;
     }
