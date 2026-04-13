@@ -1,6 +1,9 @@
 import { type Tile } from '../types/level';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://hoppers-game-production.up.railway.app';
+let API_BASE = import.meta.env.VITE_API_URL || 'https://hoppers-game-production.up.railway.app';
+if (API_BASE && !API_BASE.startsWith('http')) {
+  API_BASE = `https://${API_BASE}`;
+}
 
 // ── Token storage ────────────────────────────────────────────────────────────
 
