@@ -147,8 +147,8 @@ async function main() {
 
   const app = express();
   
-  // Railway handles SSL at the edge; trust their proxy headers
-  app.set('trust proxy', true);
+  // Railway handles SSL at the edge; trust their proxy (1 hop)
+  app.set('trust proxy', 1);
 
   // Global CORS and Preflight handling
   app.use(cors({ 
