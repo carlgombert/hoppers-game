@@ -66,7 +66,7 @@ async function broadcastPartyState(
 
   const room = io.sockets.adapter.rooms.get(code);
 
-  const members = membersResult.rows.map((m) => ({
+  const members = (membersResult.rows as any[]).map((m: any) => ({
     userId: m.user_id,
     displayName: m.display_name,
     isReady: m.is_ready,
@@ -115,7 +115,7 @@ function scheduleCountdown(
     db.query(
       `UPDATE parties SET state = 'active' WHERE id = $1 AND state = 'waiting'`,
       [partyId],
-    ).catch((err) => console.error('Failed to mark party active', err));
+    ).catch((err: any) => console.error('Failed to mark party active', err));
     return;
   }
 
@@ -176,7 +176,7 @@ async function main() {
         `SELECT character_key, display_name FROM users WHERE id = $1`,
         [userId],
       )
-      .then((result) => {
+      .then((result: any) => {
         const row = result.rows[0];
         const nextKey = row?.character_key;
         if (typeof nextKey === 'string' && nextKey.trim().length > 0) {
@@ -187,7 +187,7 @@ async function main() {
           displayName = nextDisplayName.trim();
         }
       })
-      .catch((err) => {
+      .catch((err: any) => {
         console.error('Failed to fetch socket user profile fields', err);
       });
 
@@ -353,7 +353,7 @@ async function main() {
           [party.id]
         );
         const allReady = membersResult.rows.length > 0 &&
-          membersResult.rows.every((m) => m.is_ready);
+          (membersResult.rows as any[]).every((m: any) => m.is_ready);
         if (!allReady) {
           socket.emit('party:error', { message: 'Not all players are ready' });
           return;
