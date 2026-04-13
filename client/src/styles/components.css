@@ -2867,11 +2867,9 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Multi-pass background matching the app wallpaper */
-  background:
-    radial-gradient(42% 48% at 82% 18%, rgba(168, 155, 210, .18) 0%, rgba(168, 155, 210, .06) 44%, transparent 100%),
-    radial-gradient(38% 44% at 12% 78%, rgba(143, 125, 184, .16) 0%, rgba(143, 125, 184, .04) 48%, transparent 100%),
-    linear-gradient(155deg, #455067 0%, #5c647f 42%, #6a7190 100%);
+  /* Premium purple gradient wallpaper */
+  background: url('../assets/purple_gradient.jpg') no-repeat center center;
+  background-size: cover;
   padding: 24px;
 }
 

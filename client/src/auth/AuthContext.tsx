@@ -35,7 +35,7 @@ const TOKEN_KEY = 'hoppers_token';
 const USER_KEY = 'hoppers_user';
 
 // Use the same fallback as our API client
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 async function apiFetch(path: string, options?: RequestInit): Promise<Response> {
   return fetch(`${API_BASE}${path}`, {
@@ -73,13 +73,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (username: string, password: string) => {
     setState((s) => ({ ...s, isLoading: true }));
     try {
+      console.log(`📡 Fetching: ${API_BASE}/auth/login`);
       const res = await apiFetch('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ username, password }),
       });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error((body as { error?: string }).error ?? 'Login failed');
+        const text = await res.text().catch(() => '');
+        console.error(`❌ Login failed (${res.status}). Body: ${text.slice(0, 100)}`);
+        let errorMsg = 'Login failed';
+        try {
+          const body = JSON.parse(text);
+          errorMsg = body.error ?? errorMsg;
+        } catch { /* use default msg */ }
+        throw new Error(errorMsg);
       }
       const body = (await res.json()) as { token: string; user: AuthUser };
       setState({ user: body.user, token: body.token, isLoading: false });
@@ -96,13 +103,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ) => {
     setState((s) => ({ ...s, isLoading: true }));
     try {
+      console.log(`📡 Fetching: ${API_BASE}/auth/register`);
       const res = await apiFetch('/auth/register', {
         method: 'POST',
         body: JSON.stringify({ username, password, avatar_id: avatar_id ?? null }),
       });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error((body as { error?: string }).error ?? 'Registration failed');
+        const text = await res.text().catch(() => '');
+        console.error(`Registration failed (${res.status}). Body: ${text.slice(0, 100)}`);
+        let errorMsg = 'Registration failed';
+        try {
+          const body = JSON.parse(text);
+          errorMsg = body.error ?? errorMsg;
+        } catch { /* use default msg */ }
+        throw new Error(errorMsg);
       }
       const body = (await res.json()) as { token: string; user: AuthUser };
       setState({ user: body.user, token: body.token, isLoading: false });

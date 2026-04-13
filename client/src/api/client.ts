@@ -32,18 +32,25 @@ function authHeaders(): HeadersInit {
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
+  const text = await res.text().catch(() => '');
   if (!res.ok) {
+    console.error(`API Error (${res.status}) for ${res.url}. Body: ${text.slice(0, 100)}`);
     let msg = `HTTP ${res.status}`;
     try {
-      const body = await res.json();
+      const body = JSON.parse(text);
       msg = body.error ?? msg;
     } catch {
-      // ignore parse errors
+      // Not JSON
     }
     throw new ApiError(msg, res.status);
   }
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+  if (res.status === 204 || !text) return undefined as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch (err) {
+    console.error(`JSON Parse Error for ${res.url}. Body: ${text.slice(0, 100)}`);
+    throw err;
+  }
 }
 
 export class ApiError extends Error {
