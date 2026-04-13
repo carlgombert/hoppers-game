@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import ChromeIcon from '../ChromeIcon';
+import SvgIcon from '../SvgIcon';
 import {
   fetchPublishedLevels,
   fetchLeaderboard,

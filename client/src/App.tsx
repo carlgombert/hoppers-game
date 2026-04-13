@@ -556,7 +556,7 @@ export default function App() {
             <LevelDetails
               level={detailLevel}
               isOwner={'tile_data' in detailLevel && levels.some(l => l.id === detailLevel.id)}
-              currentUserAvatarId={user.avatar_id}
+              currentUserAvatarId={user.avatar_id ?? undefined}
               onBack={handleBackFromDetails}
               onPlay={(l) => {
                 if ('tile_data' in l) handlePlayLevel(l as Level);
