@@ -4,9 +4,11 @@ import TilePalette from './TilePalette';
 import TileCanvas from './TileCanvas';
 import GameCanvas from '../../game/GameCanvas';
 import SvgIcon from '../SvgIcon';
+import ChromeIcon from '../ChromeIcon';
 import { BACKDROP_OPTIONS, normalizeBackdropId } from '../../game/backdrops';
 
 const MAX_UNDO = 50;
+type MovingDirection = 'left' | 'right' | 'up' | 'down';
 
 function makeTileKey(x: number, y: number) {
   return `${x},${y}`;
@@ -14,7 +16,11 @@ function makeTileKey(x: number, y: number) {
 
 function levelToTileMap(level: Level | null): Map<string, Tile> {
   if (!level) return new Map();
-  return new Map(level.tile_data.map((t) => [makeTileKey(t.x, t.y), t]));
+  return new Map(
+    level.tile_data
+      .filter((t) => !(t.type === 'water' && t.waterVariant === 'flow'))
+      .map((t) => [makeTileKey(t.x, t.y), t]),
+  );
 }
 
 interface Props {
@@ -32,6 +38,7 @@ export default function LevelEditor({ level, onSave, onCancel }: Props) {
   const [undoStack, setUndoStack] = useState<Map<string, Tile>[]>([]);
   const [redoStack, setRedoStack] = useState<Map<string, Tile>[]>([]);
   const [pendingPortalId, setPendingPortalId] = useState<string | null>(null);
+  const [movingDirection, setMovingDirection] = useState<MovingDirection>('right');
   const [publishError, setPublishError] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
   // Snapshot of tileMap captured at preview start
@@ -117,6 +124,9 @@ export default function LevelEditor({ level, onSave, onCancel }: Props) {
         }
       } else {
         newTile = { type: tool as TileType, x, y };
+        if (tool === 'moving_box') {
+          newTile.moveDirection = movingDirection;
+        }
       }
 
       next.set(makeTileKey(x, y), newTile);
@@ -255,7 +265,6 @@ export default function LevelEditor({ level, onSave, onCancel }: Props) {
           Cancel
         </button>
         <button type="button" className="xp-btn ghost" onClick={handlePreview}>
-          <SvgIcon name="preview" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
           Preview
         </button>
         <button type="button" className="xp-btn" onClick={handleSaveDraft}>
@@ -292,6 +301,29 @@ export default function LevelEditor({ level, onSave, onCancel }: Props) {
 
         {/* ── Right info strip ──────────────────────────────────── */}
         <div className="xp-editor-info-rail">
+          {tool === 'moving_box' && (
+            <>
+              <div className="xp-pane-heading">MOVING BOX DIRECTION</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 12 }}>
+                {([
+                  ['left', 'Left'],
+                  ['right', 'Right'],
+                  ['up', 'Up'],
+                  ['down', 'Down'],
+                ] as [MovingDirection, string][]).map(([dir, label]) => (
+                  <button
+                    key={dir}
+                    type="button"
+                    className={`xp-btn ${movingDirection === dir ? 'primary' : 'ghost'}`}
+                    onClick={() => setMovingDirection(dir)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
           <div className="xp-pane-heading">BACKDROP</div>
           <select
             className="xp-editor-desc-input"

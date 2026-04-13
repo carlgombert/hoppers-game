@@ -13,6 +13,9 @@ import { normalizeBackdropId } from '../../game/backdrops';
 
 interface Props {
   onPlay: (level: Level) => void;
+  onViewDetails: (level: PublishedLevel) => void;
+  onCopy: (id: string, title: string) => void;
+  forkingId: string | null;
 }
 
 function formatTime(ms: number) {
@@ -29,13 +32,11 @@ function formatDate(iso: string) {
   });
 }
 
-export default function CommunityBrowse({ onPlay }: Props) {
+export default function CommunityBrowse({ onPlay, onViewDetails, onCopy, forkingId }: Props) {
   const [levels, setLevels] = useState<PublishedLevel[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [forking, setForking] = useState<string | null>(null);
-  const [forkSuccess, setForkSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Leaderboard panel
@@ -59,19 +60,6 @@ export default function CommunityBrowse({ onPlay }: Props) {
   }, []);
 
   useEffect(() => { load(1); }, [load]);
-
-  async function handleFork(id: string, title: string) {
-    setForking(id);
-    try {
-      await forkLevel(id);
-      setForkSuccess(`"${title}" was added to your levels.`);
-      setTimeout(() => setForkSuccess(null), 3000);
-    } catch {
-      setError('Failed to fork level.');
-    } finally {
-      setForking(null);
-    }
-  }
 
   async function openLeaderboard(level: PublishedLevel) {
     setLbLevel(level);
@@ -101,9 +89,6 @@ export default function CommunityBrowse({ onPlay }: Props) {
         </button>
       </div>
 
-      {forkSuccess && (
-        <div className="xp-community-notice">{forkSuccess}</div>
-      )}
       {error && (
         <div className="xp-community-error">{error}</div>
       )}
@@ -128,29 +113,37 @@ export default function CommunityBrowse({ onPlay }: Props) {
       {levels.length > 0 && (
         <div className="xp-levels-grid">
           {levels.map((level) => (
-            <div key={level.id} className="xp-level-card">
-              {/* Thumbnail */}
-              <div className="xp-level-card-thumb">
-                {level.thumbnail ? (
-                  <img
-                    src={level.thumbnail}
-                    alt={level.title}
-                    className="xp-level-card-thumb-img"
-                  />
-                ) : (
-                  <span className="xp-level-card-tile-count">No preview</span>
-                )}
-                <span className="xp-level-badge published">Community</span>
-              </div>
+            <div key={level.id} className="xp-level-card interactive">
+              <div 
+                className="xp-level-card-clickable" 
+                onClick={() => onViewDetails(level)}
+                role="button"
+                tabIndex={0}
+                aria-label={`View details for ${level.title || 'Untitled'}`}
+              >
+                {/* Thumbnail */}
+                <div className="xp-level-card-thumb">
+                  {level.thumbnail ? (
+                    <img
+                      src={level.thumbnail}
+                      alt={level.title}
+                      className="xp-level-card-thumb-img"
+                    />
+                  ) : (
+                    <span className="xp-level-card-tile-count">No preview</span>
+                  )}
+                  <span className="xp-level-badge published">Community</span>
+                </div>
 
-              {/* Body */}
-              <div className="xp-level-card-body">
-                <div className="xp-level-card-title">{level.title || 'Untitled'}</div>
-                {level.description && (
-                  <div className="xp-level-card-desc">{level.description}</div>
-                )}
-                <div className="xp-level-card-meta">
-                  By {level.author} &ndash; {formatDate(level.created_at)}
+                {/* Body */}
+                <div className="xp-level-card-body">
+                  <div className="xp-level-card-title">{level.title || 'Untitled'}</div>
+                  {level.description && (
+                    <div className="xp-level-card-desc">{level.description}</div>
+                  )}
+                  <div className="xp-level-card-meta">
+                    By {level.author} &ndash; {formatDate(level.created_at)}
+                  </div>
                 </div>
               </div>
 
@@ -172,25 +165,25 @@ export default function CommunityBrowse({ onPlay }: Props) {
                     })
                   }
                 >
-                  <SvgIcon name="play" size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                  Play
+                  <span className="xp-btn-icontext-row">
+                    <SvgIcon name="play" size={13} className="xp-btn-icon" />
+                    <span>Play</span>
+                  </span>
                 </button>
                 <button
                   type="button"
                   className="xp-btn ghost"
                   onClick={() => openLeaderboard(level)}
                 >
-                  <SvgIcon name="trophy" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
                   Scores
                 </button>
                 <button
                   type="button"
                   className="xp-btn ghost"
-                  disabled={forking === level.id}
-                  onClick={() => handleFork(level.id, level.title)}
+                  disabled={forkingId === level.id}
+                  onClick={() => onCopy(level.id, level.title)}
                 >
-                  <SvgIcon name="fork" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                  {forking === level.id ? 'Forking...' : 'Fork'}
+                  {forkingId === level.id ? 'Copying...' : 'Copy'}
                 </button>
               </div>
             </div>
@@ -243,11 +236,11 @@ export default function CommunityBrowse({ onPlay }: Props) {
               {!lbLoading && lbEntries.length > 0 && (
                 <ol className="xp-lb-list">
                   {lbEntries.map((e, i) => (
-                    <li key={i} className="xp-lb-row">
-                      <span className="xp-lb-rank">{i + 1}.</span>
-                      <span className="xp-lb-name">{e.display_name}</span>
-                      <span className="xp-lb-time">{formatTime(e.elapsed_ms)}</span>
-                    </li>
+                  <li key={i} className="xp-lb-row">
+                    <span className="xp-lb-rank">{i + 1}.</span>
+                    <span className="xp-lb-name">{e.display_name}</span>
+                    <span className="xp-lb-time" style={{ color: 'black' }}>{formatTime(e.elapsed_ms)}</span>
+                  </li>
                   ))}
                 </ol>
               )}

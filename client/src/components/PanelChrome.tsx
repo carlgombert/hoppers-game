@@ -6,6 +6,7 @@ interface PanelChromeProps {
   children: React.ReactNode;
   dark?: boolean;
   className?: string;
+  titlebarClassName?: string;
   actionButton?: React.ReactNode;
 }
 
@@ -15,12 +16,13 @@ export default function PanelChrome({
   children,
   dark = false,
   className = '',
+  titlebarClassName = '',
   actionButton,
 }: PanelChromeProps) {
   return (
     <div className={`xp-panel-chrome ${className}`}>
       {/* Titlebar */}
-      <div className="xp-titlebar">
+      <div className={`xp-titlebar ${titlebarClassName}`}>
         {icon && <span className="xp-titlebar-icon">{icon}</span>}
         <span className="xp-titlebar-text">{title}</span>
 

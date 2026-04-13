@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import AvatarPicker, { getAvatarSrc } from '../auth/AvatarPicker';
 import CharacterPicker from '../characters/CharacterPicker';
-import ChromeIcon from '../ChromeIcon';
+import SettingsIcon from './SettingsIcon';
 import { useAuth } from '../../auth/AuthContext';
 import { DEFAULT_CHARACTER_KEY } from '../../types/characters';
 
@@ -139,7 +139,7 @@ export default function SettingsPage() {
                   draggable={false}
                 />
               ) : (
-                <ChromeIcon variant="profile" className="xp-settings-identity-avatar-icon" />
+                <SettingsIcon className="xp-settings-identity-avatar-icon" />
               )}
             </div>
             <div className="xp-settings-identity-info">

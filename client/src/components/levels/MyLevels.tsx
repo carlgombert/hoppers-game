@@ -9,6 +9,7 @@ interface Props {
   onEdit: (level: Level) => void;
   onDelete: (id: string) => void;
   onCreateNew: () => void;
+  onViewDetails: (level: Level) => void;
 }
 
 function formatDate(iso: string) {
@@ -19,7 +20,7 @@ function formatDate(iso: string) {
   });
 }
 
-export default function MyLevels({ levels, loading, onPlay, onEdit, onDelete, onCreateNew }: Props) {
+export default function MyLevels({ levels, loading, onPlay, onEdit, onDelete, onCreateNew, onViewDetails }: Props) {
   return (
     <div className="xp-levels-layout">
       {/* Toolbar */}
@@ -58,27 +59,35 @@ export default function MyLevels({ levels, loading, onPlay, onEdit, onDelete, on
       {levels.length > 0 && (
         <div className="xp-levels-grid">
           {levels.map((level) => (
-            <div key={level.id} className="xp-level-card">
-              {/* Thumbnail area */}
-              <div className="xp-level-card-thumb">
-                <span className="xp-level-card-tile-count">
-                  {level.tile_data.length} tiles
-                </span>
-                {level.published ? (
-                  <span className="xp-level-badge published">Published</span>
-                ) : (
-                  <span className="xp-level-badge draft">Draft</span>
-                )}
-              </div>
+            <div key={level.id} className="xp-level-card interactive">
+              <div 
+                className="xp-level-card-clickable" 
+                onClick={() => onViewDetails(level)}
+                role="button"
+                tabIndex={0}
+                aria-label={`View details for ${level.title || 'Untitled Level'}`}
+              >
+                {/* Thumbnail area */}
+                <div className="xp-level-card-thumb">
+                  <span className="xp-level-card-tile-count">
+                    {level.tile_data.length} tiles
+                  </span>
+                  {level.published ? (
+                    <span className="xp-level-badge published">Published</span>
+                  ) : (
+                    <span className="xp-level-badge draft">Draft</span>
+                  )}
+                </div>
 
-              {/* Card body */}
-              <div className="xp-level-card-body">
-                <div className="xp-level-card-title">{level.title || 'Untitled Level'}</div>
-                {level.description && (
-                  <div className="xp-level-card-desc">{level.description}</div>
-                )}
-                <div className="xp-level-card-meta">
-                  Updated {formatDate(level.updated_at)}
+                {/* Card body */}
+                <div className="xp-level-card-body">
+                  <div className="xp-level-card-title">{level.title || 'Untitled Level'}</div>
+                  {level.description && (
+                    <div className="xp-level-card-desc">{level.description}</div>
+                  )}
+                  <div className="xp-level-card-meta">
+                    Updated {formatDate(level.updated_at)}
+                  </div>
                 </div>
               </div>
 
@@ -86,11 +95,13 @@ export default function MyLevels({ levels, loading, onPlay, onEdit, onDelete, on
               <div className="xp-level-card-actions">
                 <button
                   type="button"
-                  className="xp-btn primary xp-level-play-btn"
+                  className="xp-btn primary xp-level-play-btn xp-btn-icontext"
                   onClick={() => onPlay(level)}
                 >
-                  <SvgIcon name="play" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                  Play
+                  <span className="xp-btn-icontext-row">
+                    <SvgIcon name="play" size={14} className="xp-btn-icon" />
+                    <span>Play</span>
+                  </span>
                 </button>
                 <button
                   type="button"

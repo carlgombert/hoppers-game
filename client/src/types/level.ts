@@ -21,6 +21,8 @@ export interface Tile {
   type: TileType;
   x: number; // grid column index
   y: number; // grid row index
+  waterVariant?: 'still' | 'flow';
+  moveDirection?: 'left' | 'right' | 'up' | 'down';
   linkedPortalId?: string;
   direction?: 'h' | 'v'; // laser direction
 }

@@ -7,8 +7,8 @@
  */
 
 // Static imports so Vite bundles all preview images correctly.
-import soraPreview from '../../assets/game-assets/characters/Sora.png';
-import nickPreview from '../../assets/game-assets/characters/Nick.png';
+import soraPreview from '../../assets/game-assets/characters/Sora/still.png';
+import nickPreview from '../../assets/game-assets/characters/Nick/still.png';
 import { CHARACTERS, type CharacterKey } from '../../types/characters';
 
 /** Maps character key → bundled preview image URL. */

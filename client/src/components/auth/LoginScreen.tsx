@@ -35,6 +35,7 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
         <PanelChrome
           title="Sign In"
           icon={<ChromeIcon variant="profile" size={16} />}
+          titlebarClassName="auth"
         >
           <div className="xp-auth-form-body">
             {error && (

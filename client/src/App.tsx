@@ -7,6 +7,7 @@ import GameCanvas from './game/GameCanvas';
 import LevelEditor from './components/editor/LevelEditor';
 import MyLevels from './components/levels/MyLevels';
 import CommunityBrowse from './components/community/CommunityBrowse';
+import LevelDetails from './components/levels/LevelDetails';
 import PartyLobby, { type PartyReadyPayload } from './components/party/PartyLobby';
 import SettingsPage from './components/settings/SettingsPage';
 import LoginScreen from './components/auth/LoginScreen';
@@ -24,9 +25,11 @@ import {
 import { type Level } from './types/level';
 import { normalizeBackdropId } from './game/backdrops';
 import { DEFAULT_CHARACTER_KEY } from './types/characters';
-
+import musicUrl from './assets/audio/music.mp3?url';
+import logout3 from './assets/logout3.svg';
+import settingsSvg from './assets/settings.svg';
 type NavId = 'build' | 'levels' | 'browse' | 'party' | 'settings';
-type ViewId = NavId | 'game';
+type ViewId = NavId | 'game' | 'level-details';
 type AuthView = 'login' | 'register';
 
 interface NavItem {
@@ -36,11 +39,11 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'build',    label: 'Level Editor', icon: 'editor'   },
-  { id: 'levels',   label: 'My Levels',    icon: 'levels'   },
-  { id: 'browse',   label: 'Community',    icon: 'browse'   },
-  { id: 'party',    label: 'Party Lobby',  icon: 'party'    },
-  { id: 'settings', label: 'Settings',     icon: 'settings' },
+  { id: 'build', label: 'Level Editor', icon: 'editor' },
+  { id: 'levels', label: 'My Levels', icon: 'levels' },
+  { id: 'browse', label: 'Community', icon: 'browse' },
+  { id: 'party', label: 'Party Lobby', icon: 'party' },
+  { id: 'settings', label: 'Settings', icon: 'settings' },
 ];
 
 function navForView(view: ViewId): NavItem {
@@ -69,6 +72,37 @@ function formatTime(ms: number) {
   return `${min}:${sec.toString().padStart(2, '0')}.${centis.toString().padStart(2, '0')}`;
 }
 
+function GlobalMusic() {
+  useEffect(() => {
+    const audio = new Audio(musicUrl);
+    audio.loop = true;
+    audio.volume = 0.4;
+
+    const handleInteraction = () => {
+      audio.play().catch((err) => {
+        console.warn('Playback failed:', err);
+      });
+      // Remove listeners after first successful (or attempted) play
+      window.removeEventListener('mousedown', handleInteraction);
+      window.removeEventListener('keydown', handleInteraction);
+      window.removeEventListener('touchstart', handleInteraction);
+    };
+
+    window.addEventListener('mousedown', handleInteraction);
+    window.addEventListener('keydown', handleInteraction);
+    window.addEventListener('touchstart', handleInteraction);
+
+    return () => {
+      audio.pause();
+      window.removeEventListener('mousedown', handleInteraction);
+      window.removeEventListener('keydown', handleInteraction);
+      window.removeEventListener('touchstart', handleInteraction);
+    };
+  }, []);
+
+  return null;
+}
+
 export default function App() {
   const { user, logout } = useAuth();
   const [authView, setAuthView] = useState<AuthView>('login');
@@ -77,15 +111,18 @@ export default function App() {
   const [levels, setLevels] = useState<Level[]>([]);
   const [editingLevel, setEditingLevel] = useState<Level | null>(null);
   const [playingLevel, setPlayingLevel] = useState<Level | null>(null);
+  const [detailLevel, setDetailLevel] = useState<Level | PublishedLevel | null>(null);
   const [levelsLoading, setLevelsLoading] = useState(false);
   const [completionTime, setCompletionTime] = useState<number | null>(null);
   const [gameInstanceId, setGameInstanceId] = useState(0);
-  const [startFresh, setStartFresh] = useState(false);
+  const [startFresh, setStartFresh] = useState(true);
 
   // Party / multiplayer state
   const [partySocket, setPartySocket] = useState<Socket | null>(null);
   const [partyCode, setPartyCode] = useState<string | null>(null);
   const [partyFinishTimes, setPartyFinishTimes] = useState<Map<string, number>>(new Map());
+  const [forkingId, setForkingId] = useState<string | null>(null);
+
 
   const loadLevels = useCallback(async () => {
     if (!user) return;
@@ -179,31 +216,83 @@ export default function App() {
   function handlePlayLevel(level: Level) {
     setPlayingLevel(level);
     setCompletionTime(null);
-    setStartFresh(false);
+    setStartFresh(true);
     setGameInstanceId((v) => v + 1);
     setView('game');
   }
 
   /** Play a community level — fetches full tile_data if not already present. */
-  async function handleCommunityPlay(level: Level) {
-    if (!level.tile_data || level.tile_data.length === 0) {
+  async function handleCommunityPlay(level: Level | PublishedLevel) {
+    const isFull = 'tile_data' in level && level.tile_data && level.tile_data.length > 0;
+    
+    if (!isFull) {
       try {
         const full = await fetchLevel(level.id);
         setPlayingLevel({
-          ...level,
-          tile_data: full.tile_data ?? [],
+          id: full.id,
+          title: full.title,
+          description: full.description ?? '',
           backdrop_id: normalizeBackdropId(full.backdrop_id),
+          tile_data: full.tile_data ?? [],
+          published: full.published,
+          created_at: full.created_at,
+          updated_at: full.updated_at,
         });
-      } catch {
-        setPlayingLevel(level);
+      } catch (err) {
+        console.error('Failed to load level details:', err);
+        return;
       }
     } else {
-      setPlayingLevel(level);
+      setPlayingLevel(level as Level);
     }
     setCompletionTime(null);
-    setStartFresh(false);
+    setStartFresh(true);
     setGameInstanceId((v) => v + 1);
     setView('game');
+  }
+
+  async function handleViewDetails(level: Level | PublishedLevel) {
+    if (!('tile_data' in level)) {
+      try {
+        const full = await fetchLevel(level.id);
+        const mapped: Level = {
+          id: full.id,
+          title: full.title,
+          description: full.description ?? '',
+          backdrop_id: normalizeBackdropId(full.backdrop_id),
+          tile_data: full.tile_data ?? [],
+          published: full.published,
+          created_at: full.created_at,
+          updated_at: full.updated_at,
+        };
+        setDetailLevel(mapped);
+      } catch (err) {
+        setDetailLevel(level);
+      }
+    } else {
+      setDetailLevel(level);
+    }
+    setView('level-details');
+  }
+
+  function handleBackFromDetails() {
+    setDetailLevel(null);
+    setView(activeNavId === 'levels' ? 'levels' : 'browse');
+  }
+
+
+  async function handleForkLevel(id: string, title: string) {
+    setForkingId(id);
+    try {
+      const saved = await forkLevel(id);
+      const savedLevel = apiLevelToLevel(saved);
+      setLevels((prev) => [...prev, savedLevel]);
+      alert(`"${title}" was added to your levels.`);
+    } catch (err) {
+      alert('Failed to copy level.');
+    } finally {
+      setForkingId(null);
+    }
   }
 
   function handlePlayAgain() {
@@ -229,7 +318,7 @@ export default function App() {
     setPartyFinishTimes(new Map());
     setPlayingLevel(level);
     setCompletionTime(null);
-    setStartFresh(false);
+    setStartFresh(true);
     setGameInstanceId((v) => v + 1);
     setView('game');
   }
@@ -244,6 +333,7 @@ export default function App() {
 
   return (
     <div className="xp-app-layout">
+      <GlobalMusic />
       <nav className="xp-sidebar-nav" aria-label="Main Navigation">
         <div className="xp-sidebar-gloss" aria-hidden="true" />
 
@@ -280,7 +370,18 @@ export default function App() {
                 else setView(item.id);
               }}
             >
-              <ChromeIcon variant={item.icon} className="xp-nav-icon" />
+              {item.id === 'settings' ? (
+                <img 
+                  src={settingsSvg} 
+                  className="xp-nav-icon" 
+                  alt="" 
+                  style={{ 
+                    filter: 'brightness(0) saturate(100%) invert(84%) sepia(21%) saturate(146%) hue-rotate(193deg) brightness(92%) contrast(89%)' 
+                  }}
+                />
+              ) : (
+                <ChromeIcon variant={item.icon} className="xp-nav-icon" />
+              )}
               <span className="xp-nav-label">{item.label}</span>
               <ChromeIcon variant="chevron" className="xp-nav-chevron-icon" />
             </button>
@@ -312,20 +413,20 @@ export default function App() {
           <div className="xp-footer-divider" aria-hidden="true" />
           <button
             type="button"
-            className="xp-orb-btn"
             aria-label="Sign out"
             onClick={logout}
             title="Sign out"
+            style={{ padding: 0, border: 'none', background: 'none', cursor: 'pointer', width: 38, height: 38, flex: '0 0 38px', borderRadius: '50%' }}
           >
-            <ChromeIcon variant="orb" className="xp-orb-icon" />
+            <img src={logout3} alt="Sign out" style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none' }} />
           </button>
         </div>
       </nav>
 
       <main className="xp-main-stage">
         <PanelChrome
-          title={currentNav.label}
-          icon={<ChromeIcon variant={currentNav.icon} size={18} />}
+          title={view === 'level-details' && detailLevel ? detailLevel.title : currentNav.label}
+          icon={view === 'level-details' ? null : <ChromeIcon variant={currentNav.icon} size={18} />}
           dark={view === 'game'}
           actionButton={
             view === 'game' ? (
@@ -345,6 +446,7 @@ export default function App() {
                 backdropId={playingLevel?.backdrop_id}
                 startFresh={startFresh}
                 characterKey={user.character_key ?? DEFAULT_CHARACTER_KEY}
+                playerDisplayName={user.display_name}
                 onComplete={handleLevelComplete}
                 socket={partySocket ?? undefined}
                 partyCode={partyCode ?? undefined}
@@ -433,6 +535,7 @@ export default function App() {
               onEdit={(level) => goToEditor(level)}
               onDelete={handleDeleteLevel}
               onCreateNew={() => goToEditor()}
+              onViewDetails={handleViewDetails}
             />
           )}
 
@@ -440,6 +543,31 @@ export default function App() {
           {view === 'browse' && (
             <CommunityBrowse
               onPlay={handleCommunityPlay}
+              onViewDetails={handleViewDetails}
+              onCopy={handleForkLevel}
+              forkingId={forkingId}
+            />
+          )}
+
+          {/* ── Level Details ────────────────────────────────── */}
+          {view === 'level-details' && detailLevel && (
+            <LevelDetails
+              level={detailLevel}
+              isOwner={'tile_data' in detailLevel && levels.some(l => l.id === detailLevel.id)}
+              currentUserAvatarId={user.avatar_id}
+              onBack={handleBackFromDetails}
+              onPlay={(l) => {
+                if ('tile_data' in l) handlePlayLevel(l as Level);
+                else handleCommunityPlay(l as PublishedLevel);
+              }}
+              onEdit={(l) => goToEditor(l)}
+              onCopy={(l) => handleForkLevel(l.id, l.title)}
+              onLeaderboard={(l) => {
+                setDetailLevel(null);
+                setView('browse'); 
+                // This is a bit clumsy, but CommunityBrowse has the LB modal logic.
+                // For now, let's keep it simple.
+              }}
             />
           )}
 

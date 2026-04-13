@@ -30,7 +30,39 @@ const SOLID_TYPES = new Set([
 
 const HAZARD_TYPES = new Set(['water', 'lava', 'boombox', 'laser']);
 
-type TileEntry = { type: string; x: number; y: number };
+type TileEntry = {
+  type: string;
+  x: number;
+  y: number;
+  waterVariant?: 'still' | 'flow';
+  linkedPortalId?: string;
+  direction?: 'h' | 'v';
+};
+
+function tileKey(x: number, y: number): string {
+  return `${x},${y}`;
+}
+
+/**
+ * Normalizes water tiles before persistence:
+ * - authored water tiles become `waterVariant: 'still'`
+ * - generated flow tiles are never persisted (runtime-only visuals/physics)
+ */
+function applyWaterFill(tiles: TileEntry[]): TileEntry[] {
+  const normalized = tiles
+    .filter((t) => !(t.type === 'water' && t.waterVariant === 'flow'))
+    .map((raw) => {
+      const next: TileEntry = { ...raw };
+      if (next.type === 'water') {
+        next.waterVariant = 'still';
+      } else {
+        delete next.waterVariant;
+      }
+      return next;
+    });
+
+  return normalized.sort((a, b) => (a.y - b.y) || (a.x - b.x));
+}
 
 /**
  * Simplified grid BFS: checks that a non-hazard, non-solid path exists between
@@ -148,11 +180,14 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
     return;
   }
   try {
+    const incomingTiles = Array.isArray(tile_data) ? (tile_data as TileEntry[]) : [];
+    const normalizedTiles = applyWaterFill(incomingTiles);
+
     const result = await db.query(
       `INSERT INTO levels (owner_id, title, description, tile_data, backdrop_id)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [req.userId, title, description ?? null, JSON.stringify(tile_data ?? []), backdrop_id ?? 'default']
+      [req.userId, title, description ?? null, JSON.stringify(normalizedTiles), backdrop_id ?? 'default']
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -180,9 +215,13 @@ router.patch('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    const normalizedTileData: TileEntry[] | null = Array.isArray(tile_data)
+      ? applyWaterFill(tile_data as TileEntry[])
+      : null;
+
     // Validate before publishing
-    if (published === true && tile_data) {
-      const tiles: TileEntry[] = tile_data;
+    if (published === true && normalizedTileData) {
+      const tiles: TileEntry[] = normalizedTileData;
       const hasStart = tiles.some((t) => t.type === 'flag_start');
       const hasFinish = tiles.some((t) => t.type === 'flag_finish');
       if (!hasStart || !hasFinish) {
@@ -213,7 +252,7 @@ router.patch('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
       [
         title ?? null,
         description ?? null,
-        tile_data ? JSON.stringify(tile_data) : null,
+        normalizedTileData ? JSON.stringify(normalizedTileData) : null,
         published ?? null,
         thumbnail ?? null,
         backdrop_id ?? null,

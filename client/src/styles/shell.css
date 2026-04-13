@@ -60,8 +60,8 @@
       rgba(168, 178, 206, 0.24) 0%,
       rgba(168, 178, 206, 0) 70%
     ),
-    /* Base metallic field */
-    linear-gradient(155deg, #455067 0%, #5c647f 42%, #6a7190 100%);
+    /* Base image layer */
+    url('../assets/background2.jpg') center/cover no-repeat;
 }
 
 /* L1 atmosphere: textured non-cosmic shell wash with frosted waves. */
@@ -109,14 +109,6 @@
       66% 62% at 78% 78%,
       rgba(143, 125, 184, 0.14) 0%,
       rgba(143, 125, 184, 0) 72%
-    ),
-    /* Fine surface noise */
-    repeating-linear-gradient(
-      -24deg,
-      rgba(255, 255, 255, 0.03) 0,
-      rgba(255, 255, 255, 0.03) 2px,
-      rgba(20, 24, 34, 0.03) 2px,
-      rgba(20, 24, 34, 0.03) 4px
     );
   mix-blend-mode: soft-light;
 }
@@ -199,7 +191,7 @@
       rgba(255, 255, 255, 0.03) 58%,
       rgba(255, 255, 255, 0) 100%
     );
-  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  /* border-bottom: 1px solid rgba(255, 255, 255, 0.14); */
 }
 
 /* ── L3: Main Stage ──────────────────────────────────────── */
@@ -297,6 +289,7 @@
   border-bottom: 1px solid rgba(20, 23, 33, 0.9);
   /* Enhanced gradient with orchid lower phase */
   background:
+    url('../assets/purple_lines.png') repeat,
     linear-gradient(
       180deg,
       #9aa1bc 0%,
@@ -305,6 +298,17 @@
       #524d72 100%
     );
   color: var(--xp-text-on-dark);
+}
+
+.xp-titlebar.auth {
+  background-image: url('../assets/purple_lines_2.png'),
+    linear-gradient(
+      180deg,
+      #9aa1bc 0%,
+      #838baa 38%,
+      #6b6492 40%,
+      #524d72 100%
+    );
 }
 
 /* Upper gloss band — brighter, covering 42% of titlebar */
@@ -365,27 +369,13 @@
   min-height: 0;
   overflow: auto;
   scrollbar-gutter: stable;
-  background: linear-gradient(to bottom, #f3f5fb 0%, #e3e6ef 100%);
+  background: url('../assets/white_gradient_abstract.jpg') center/cover no-repeat;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.5),
     inset 0 10px 20px rgba(79, 84, 107, 0.12);
 }
 
-/* Fine texture on light pane body */
-.xp-panel-body::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    repeating-linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.03) 0,
-      rgba(255, 255, 255, 0.03) 2px,
-      rgba(42, 48, 66, 0.015) 2px,
-      rgba(42, 48, 66, 0.015) 4px
-    );
-}
+
 
 .xp-panel-body.dark {
   background:
@@ -396,16 +386,7 @@
     inset 0 14px 26px rgba(0, 0, 0, 0.42);
 }
 
-.xp-panel-body.dark::before {
-  background:
-    repeating-linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.018) 0,
-      rgba(255, 255, 255, 0.018) 2px,
-      rgba(10, 13, 21, 0.035) 2px,
-      rgba(10, 13, 21, 0.035) 4px
-    );
-}
+
 
 /* ── Responsive ──────────────────────────────────────────── */
 

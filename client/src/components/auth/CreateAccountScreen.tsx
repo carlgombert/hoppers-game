@@ -52,7 +52,8 @@ export default function CreateAccountScreen({ onSwitchToLogin }: CreateAccountSc
 
         <PanelChrome
           title="Create Account"
-          icon={<ChromeIcon variant="editor" size={16} />}
+          icon={<ChromeIcon variant="plus" size={16} />}
+          titlebarClassName="auth"
         >
           <div className="xp-auth-form-body">
             {error && (

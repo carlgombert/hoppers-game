@@ -74,6 +74,16 @@ export default function TileCanvas({
         ctx.arc(px + CELL / 2, py + CELL / 2, (CELL / 2) - 3, 0, Math.PI * 2);
         ctx.stroke();
       }
+
+      if (tile.type === 'moving_box') {
+        ctx.fillStyle = 'rgba(255,255,255,0.78)';
+        ctx.font = `bold ${CELL - 7}px Tahoma, Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const dir = tile.moveDirection ?? 'right';
+        const symbol = dir === 'left' ? '<' : dir === 'right' ? '>' : dir === 'up' ? '^' : 'v';
+        ctx.fillText(symbol, px + CELL / 2, py + CELL / 2 + 1);
+      }
     });
 
     // Grid lines

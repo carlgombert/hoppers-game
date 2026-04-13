@@ -8,33 +8,74 @@ import SvgIcon from '../components/SvgIcon';
 import { normalizeBackdropId } from './backdrops';
 
 // ── Game-asset URLs (resolved by Vite at build time) ──────────────────────────
-import soraUrl from '../assets/game-assets/characters/Sora.png?url';
-import nickUrl from '../assets/game-assets/characters/Nick.png?url';
+import soraStillUrl from '../assets/game-assets/characters/Sora/still.png?url';
+import soraLadder1Url from '../assets/game-assets/characters/Sora/ladder-1.png?url';
+import soraLadder2Url from '../assets/game-assets/characters/Sora/ladder-2.png?url';
+import soraJumpUrl from '../assets/game-assets/characters/Sora/jump.png?url';
+import soraRun1Url from '../assets/game-assets/characters/Sora/run-1.png?url';
+import soraRun2Url from '../assets/game-assets/characters/Sora/run-2.png?url';
+import soraRun3Url from '../assets/game-assets/characters/Sora/run-3.png?url';
+import nickStillUrl from '../assets/game-assets/characters/Nick/still.png?url';
+import nickLadder1Url from '../assets/game-assets/characters/Nick/ladder-1.png?url';
+import nickLadder2Url from '../assets/game-assets/characters/Nick/ladder-2.png?url';
+import nickJumpUrl from '../assets/game-assets/characters/Nick/jump.png?url';
+import nickRun1Url from '../assets/game-assets/characters/Nick/run-1.png?url';
+import nickRun2Url from '../assets/game-assets/characters/Nick/run-2.png?url';
+import nickRun3Url from '../assets/game-assets/characters/Nick/run-3.png?url';
 import landTexUrl from '../assets/game-assets/textures/land.png?url';
 import grassTexUrl from '../assets/game-assets/textures/grass.png?url';
 import demonGrassTexUrl from '../assets/game-assets/textures/demon-grass.png?url';
 import ladderTexUrl from '../assets/game-assets/textures/ladder.png?url';
+import movingBoxTexUrl from '../assets/game-assets/textures/moving-box.png?url';
+import boomboxTexUrl from '../assets/game-assets/textures/boombox.png?url';
+import explosionGifUrl from '../assets/game-assets/textures/explosion.gif?url';
+import waterFlowTexUrl from '../assets/game-assets/textures/water_flow.png?url';
+import waterStillTexUrl from '../assets/game-assets/textures/water_still.png?url';
+import lavaFlowTexUrl from '../assets/game-assets/textures/lava_flow.png?url';
+import lavaStillTexUrl from '../assets/game-assets/textures/lava_still.png?url';
 import mountainsBackdropUrl from '../assets/mountains.jpg?url';
+import cityBackdropUrl from '../assets/city.png?url';
 import { DEFAULT_CHARACTER_KEY } from '../types/characters';
 
 /**
  * Maps every character key to its bundled sprite URL.
  * Add a new entry here whenever a new skin is introduced.
  */
-const CHARACTER_ASSET_URLS: Record<string, string> = {
-  sora: soraUrl,
-  nick: nickUrl,
+const CHARACTER_ASSET_URLS: Record<string, { still: string; ladder?: string[]; jump?: string; run?: string[] }> = {
+  sora: {
+    still: soraStillUrl,
+    ladder: [soraLadder1Url, soraLadder2Url],
+    jump: soraJumpUrl,
+    run: [soraRun1Url, soraRun2Url, soraRun3Url],
+  },
+  nick: {
+    still: nickStillUrl,
+    ladder: [nickLadder1Url, nickLadder2Url],
+    jump: nickJumpUrl,
+    run: [nickRun1Url, nickRun2Url, nickRun3Url],
+  },
 };
+
+import fallingLandTexUrl from '../assets/game-assets/textures/falling_land.png?url';
 
 const TILE_ASSET_URLS = {
   land: landTexUrl,
   grass: grassTexUrl,
   demon_grass: demonGrassTexUrl,
   ladder: ladderTexUrl,
+  moving_box: movingBoxTexUrl,
+  boombox: boomboxTexUrl,
+  explosion: explosionGifUrl,
+  water_flow: waterFlowTexUrl,
+  water_still: waterStillTexUrl,
+  lava_flow: lavaFlowTexUrl,
+  lava_still: lavaStillTexUrl,
+  falling_land: fallingLandTexUrl,
 } as const;
 
 const BACKDROP_ASSET_URLS = {
   mountains: mountainsBackdropUrl,
+  city: cityBackdropUrl,
 } as const;
 
 interface GameCanvasProps {
@@ -47,6 +88,8 @@ interface GameCanvasProps {
   startFresh?: boolean;
   /** Playable character key (e.g. 'sora', 'nick'). Defaults to DEFAULT_CHARACTER_KEY. */
   characterKey?: string;
+  /** Display name for the local player, shown as an in-game nameplate. */
+  playerDisplayName?: string;
   onComplete?: (elapsedMs: number) => void;
   /** Socket.io socket for multiplayer — omit for solo play */
   socket?: Socket;
@@ -64,6 +107,7 @@ export default function GameCanvas({
   backdropId,
   startFresh = false,
   characterKey = DEFAULT_CHARACTER_KEY,
+  playerDisplayName,
   onComplete,
   socket,
   partyCode,
@@ -143,13 +187,15 @@ export default function GameCanvas({
       game.registry.set('tileData', tileData);
       game.registry.set('savedCheckpoint', savedCheckpoint);
 
-      // Pass pre-resolved asset URLs so MainScene.preload() can load them.
-      // characterUrl resolves the selected skin; falls back to sora if unknown.
-      const characterUrl = CHARACTER_ASSET_URLS[characterKey] ?? CHARACTER_ASSET_URLS[DEFAULT_CHARACTER_KEY];
-      game.registry.set('assetUrls', { ...TILE_ASSET_URLS, character: characterUrl });
+      // Pass pre-resolved asset URLs so MainScene.preload() can load both local and remote character skins.
+      game.registry.set('assetUrls', {
+        ...TILE_ASSET_URLS,
+        characters: CHARACTER_ASSET_URLS,
+      });
       game.registry.set('backdropAssetUrls', BACKDROP_ASSET_URLS);
       game.registry.set('backdropId', normalizeBackdropId(backdropId));
       game.registry.set('characterKey', characterKey);
+      game.registry.set('localDisplayName', playerDisplayName ?? 'You');
 
       // Multiplayer registry values
       game.registry.set('socket', socket ?? null);
