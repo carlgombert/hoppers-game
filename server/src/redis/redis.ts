@@ -28,8 +28,16 @@ redis.on('error', (err) => console.error('Redis error:', err));
 
 export async function connectRedis() {
   if (redis.isOpen) return;
-  await redis.connect();
-  console.log('Redis connected');
+  try {
+    console.log(`📡 Connecting to Redis at: ${(redisUrl ?? 'redis://localhost:6379').replace(/:[^:@]+@/, ':****@')}`);
+    await redis.connect();
+    console.log('✅ Redis connection established');
+  } catch (err) {
+    console.error('❌ Failed to connect to Redis:', err);
+    if (process.env.NODE_ENV === 'production') {
+      throw err; // Still crash in production so Railway restarts it
+    }
+  }
 }
 
 export async function disconnectRedis() {

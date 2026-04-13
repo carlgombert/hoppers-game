@@ -127,7 +127,23 @@ function scheduleCountdown(
 }
 
 async function main() {
-  await connectRedis();
+  console.log('🚀 Starting Hoppers server...');
+  
+  try {
+    await connectRedis();
+  } catch (err) {
+    console.error('❌ Redis initialization failed:', err);
+    if (process.env.NODE_ENV === 'production') process.exit(1);
+  }
+
+  try {
+    console.log('📡 Testing database connection...');
+    await db.query('SELECT 1');
+    console.log('✅ Database connection established');
+  } catch (err) {
+    console.error('❌ Database connection failed:', err);
+    if (process.env.NODE_ENV === 'production') process.exit(1);
+  }
 
   const app = express();
 
@@ -504,7 +520,9 @@ async function main() {
   });
 
   httpServer.listen(PORT, '0.0.0.0', () => {
-    console.log(`Hoppers server running on http://0.0.0.0:${PORT}`);
+    console.log('--------------------------------------------------');
+    console.log(`✅ Hoppers server running on http://0.0.0.0:${PORT}`);
+    console.log('--------------------------------------------------');
   });
 
   let shuttingDown = false;

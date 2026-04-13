@@ -77,14 +77,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (username: string, password: string) => {
     setState((s) => ({ ...s, isLoading: true }));
     try {
-      console.log(`📡 Fetching: ${API_BASE}/auth/login`);
+      console.log(`Fetching: ${API_BASE}/auth/login`);
       const res = await apiFetch('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ username, password }),
       });
       if (!res.ok) {
         const text = await res.text().catch(() => '');
-        console.error(`❌ Login failed (${res.status}). Body: ${text.slice(0, 100)}`);
+        console.error(`Login failed (${res.status}). Body: ${text.slice(0, 100)}`);
         let errorMsg = 'Login failed';
         try {
           const body = JSON.parse(text);
@@ -108,7 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ) => {
     setState((s) => ({ ...s, isLoading: true }));
     try {
-      console.log(`📡 Fetching: ${API_BASE}/auth/register`);
+      console.log(`Fetching: ${API_BASE}/auth/register`);
       const res = await apiFetch('/auth/register', {
         method: 'POST',
         body: JSON.stringify({ username, password, avatar_id: avatar_id ?? null }),
@@ -126,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const body = (await res.json()) as { token: string; user: AuthUser };
       setState({ user: body.user, token: body.token, isLoading: false });
     } catch (err) {
-      console.error('🔥 Auth Error Details (Register):', err);
+      console.error('Auth Error Details (Register):', err);
       setState((s) => ({ ...s, isLoading: false }));
       throw err;
     }
