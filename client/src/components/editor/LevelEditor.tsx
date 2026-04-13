@@ -146,6 +146,32 @@ export default function LevelEditor({ level, onSave, onCancel }: Props) {
     });
   }
 
+  function handleGlue(x: number, y: number, side: 'up' | 'down' | 'left' | 'right') {
+    setTileMap((prev) => {
+      const next = new Map(prev);
+      const key = makeTileKey(x, y);
+      const existing = next.get(key);
+      if (!existing) return prev;
+
+      // Forbidden on water/lava/laser
+      if (existing.type === 'water' || existing.type === 'lava' || existing.type === 'laser') {
+        return prev;
+      }
+
+      const nextTile = { ...existing };
+      nextTile.glue = { ...(nextTile.glue ?? {}) };
+      nextTile.glue[side] = !nextTile.glue[side];
+      
+      // Clean up empty glue object if all sides are false
+      if (!nextTile.glue.up && !nextTile.glue.down && !nextTile.glue.left && !nextTile.glue.right) {
+        delete nextTile.glue;
+      }
+
+      next.set(key, nextTile);
+      return next;
+    });
+  }
+
   function validateForPublish(): string | null {
     const tiles = Array.from(tileMap.values());
     const hasStart = tiles.some((t) => t.type === 'flag_start');
@@ -292,6 +318,7 @@ export default function LevelEditor({ level, onSave, onCancel }: Props) {
             tool={tool}
             onPaint={handlePaint}
             onErase={handleErase}
+            onGlue={handleGlue}
             onGestureStart={handleGestureStart}
             onGestureEnd={handleGestureEnd}
           />

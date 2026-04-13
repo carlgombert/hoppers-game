@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { Pool } from 'pg';
+import 'dotenv/config';
 
 const connectionString = process.env.DATABASE_URL;
 

@@ -10,6 +10,7 @@ interface Props {
   tool: EditorTool;
   onPaint: (x: number, y: number) => void;
   onErase: (x: number, y: number) => void;
+  onGlue: (x: number, y: number, side: 'up' | 'down' | 'left' | 'right') => void;
   onGestureStart: () => void;
   onGestureEnd: () => void;
 }
@@ -19,6 +20,7 @@ export default function TileCanvas({
   tool,
   onPaint,
   onErase,
+  onGlue,
   onGestureStart,
   onGestureEnd,
 }: Props) {
@@ -84,6 +86,16 @@ export default function TileCanvas({
         const symbol = dir === 'left' ? '<' : dir === 'right' ? '>' : dir === 'up' ? '^' : 'v';
         ctx.fillText(symbol, px + CELL / 2, py + CELL / 2 + 1);
       }
+
+      // Glue rendering
+      if (tile.glue) {
+        ctx.fillStyle = '#f0c040';
+        const thickness = 3;
+        if (tile.glue.up) ctx.fillRect(px, py, CELL, thickness);
+        if (tile.glue.down) ctx.fillRect(px, py + CELL - thickness, CELL, thickness);
+        if (tile.glue.left) ctx.fillRect(px, py, thickness, CELL);
+        if (tile.glue.right) ctx.fillRect(px + CELL - thickness, py, thickness, CELL);
+      }
     });
 
     // Grid lines
@@ -107,8 +119,10 @@ export default function TileCanvas({
       const { col, row } = hover;
       if (tool === 'eraser') {
         ctx.fillStyle = 'rgba(200,60,60,0.22)';
+      } else if (tool === 'glue') {
+        ctx.fillStyle = 'rgba(240,192,64,0.3)';
       } else {
-        const meta = TILE_META[tool];
+        const meta = TILE_META[tool as TileType];
         ctx.fillStyle = meta.color + '40';
       }
       ctx.fillRect(col * CELL + 1, row * CELL + 1, CELL - 1, CELL - 1);
@@ -152,6 +166,25 @@ export default function TileCanvas({
     e.preventDefault();
     const cell = getCellFromEvent(e);
     if (!cell) return;
+
+    if (tool === 'glue') {
+      const rect = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
+      const localX = e.clientX - rect.left - cell.col * CELL;
+      const localY = e.clientY - rect.top - cell.row * CELL;
+
+      const dists = [
+        { side: 'up' as const, d: localY },
+        { side: 'down' as const, d: CELL - localY },
+        { side: 'left' as const, d: localX },
+        { side: 'right' as const, d: CELL - localX },
+      ];
+      dists.sort((a, b) => a.d - b.d);
+      onGestureStart();
+      onGlue(cell.col, cell.row, dists[0].side);
+      onGestureEnd();
+      return;
+    }
+
     onGestureStart();
     isPainting.current = true;
     isErasing.current = e.button === 2 || tool === 'eraser';

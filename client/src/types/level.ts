@@ -15,16 +15,22 @@ export type TileType =
   | 'flag_checkpoint'
   | 'flag_finish';
 
-export type EditorTool = TileType | 'eraser';
+export type EditorTool = TileType | 'eraser' | 'glue';
 
 export interface Tile {
   type: TileType;
   x: number; // grid column index
   y: number; // grid row index
   waterVariant?: 'still' | 'flow';
-  moveDirection?: 'left' | 'right' | 'up' | 'down';
+  moveDirection?: 'left' | 'right' | 'up' | 'right' | 'down';
   linkedPortalId?: string;
   direction?: 'h' | 'v'; // laser direction
+  glue?: {
+    up?: boolean;
+    down?: boolean;
+    left?: boolean;
+    right?: boolean;
+  };
 }
 
 export interface Level {

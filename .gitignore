@@ -1,3 +1,5 @@
 /notes
 .DS_Store
 README.md
+server/.env
+client/.env

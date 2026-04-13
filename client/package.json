@@ -11,6 +11,7 @@
     "start": "npx serve -s dist -l $PORT"
   },
   "dependencies": {
+    "dotenv": "^17.4.2",
     "phaser": "^4.0.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

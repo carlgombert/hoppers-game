@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { type Socket } from 'socket.io-client';
 import ChromeIcon, { type ChromeIconVariant } from './components/ChromeIcon';
 import SvgIcon from './components/SvgIcon';
@@ -74,17 +74,18 @@ function formatTime(ms: number) {
   return `${min}:${sec.toString().padStart(2, '0')}.${centis.toString().padStart(2, '0')}`;
 }
 
-function GlobalMusic() {
+function GlobalMusic({ enabled }: { enabled: boolean }) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [hasInteracted, setHasInteracted] = useState(false);
+
   useEffect(() => {
     const audio = new Audio(musicUrl);
     audio.loop = true;
-    audio.volume = 0.4;
+    audio.volume = 0.2; // Slightly reduced default volume
+    audioRef.current = audio;
 
     const handleInteraction = () => {
-      audio.play().catch((err) => {
-        console.warn('Playback failed:', err);
-      });
-      // Remove listeners after first successful (or attempted) play
+      setHasInteracted(true);
       window.removeEventListener('mousedown', handleInteraction);
       window.removeEventListener('keydown', handleInteraction);
       window.removeEventListener('touchstart', handleInteraction);
@@ -96,11 +97,23 @@ function GlobalMusic() {
 
     return () => {
       audio.pause();
+      audioRef.current = null;
       window.removeEventListener('mousedown', handleInteraction);
       window.removeEventListener('keydown', handleInteraction);
       window.removeEventListener('touchstart', handleInteraction);
     };
   }, []);
+
+  useEffect(() => {
+    if (!audioRef.current) return;
+    if (enabled && hasInteracted) {
+      audioRef.current.play().catch((err) => {
+        console.warn('Playback failed:', err);
+      });
+    } else {
+      audioRef.current.pause();
+    }
+  }, [enabled, hasInteracted]);
 
   return null;
 }
@@ -124,6 +137,8 @@ export default function App() {
   const [partyCode, setPartyCode] = useState<string | null>(null);
   const [partyFinishTimes, setPartyFinishTimes] = useState<Map<string, number>>(new Map());
   const [forkingId, setForkingId] = useState<string | null>(null);
+
+  const [isMusicEnabled, setIsMusicEnabled] = useState(true);
 
 
   const loadLevels = useCallback(async () => {
@@ -226,7 +241,7 @@ export default function App() {
   /** Play a community level — fetches full tile_data if not already present. */
   async function handleCommunityPlay(level: Level | PublishedLevel) {
     const isFull = 'tile_data' in level && level.tile_data && level.tile_data.length > 0;
-    
+
     if (!isFull) {
       try {
         const full = await fetchLevel(level.id);
@@ -335,7 +350,7 @@ export default function App() {
 
   return (
     <div className="xp-app-layout">
-      <GlobalMusic />
+      <GlobalMusic enabled={isMusicEnabled} />
       <nav className="xp-sidebar-nav" aria-label="Main Navigation">
         <div className="xp-sidebar-gloss" aria-hidden="true" />
 
@@ -373,12 +388,12 @@ export default function App() {
               }}
             >
               {item.id === 'settings' ? (
-                <img 
-                  src={settingsSvg} 
-                  className="xp-nav-icon" 
-                  alt="" 
-                  style={{ 
-                    filter: 'brightness(0) saturate(100%) invert(84%) sepia(21%) saturate(146%) hue-rotate(193deg) brightness(92%) contrast(89%)' 
+                <img
+                  src={settingsSvg}
+                  className="xp-nav-icon"
+                  alt=""
+                  style={{
+                    filter: 'brightness(0) saturate(100%) invert(84%) sepia(21%) saturate(146%) hue-rotate(193deg) brightness(92%) contrast(89%)'
                   }}
                 />
               ) : (
@@ -409,8 +424,12 @@ export default function App() {
         </div>
 
         <div className="xp-sidebar-footer">
-          <button type="button" className="xp-start-strip" onClick={() => goToEditor()}>
-            New Level
+          <button
+            type="button"
+            className="xp-start-strip"
+            onClick={() => setIsMusicEnabled(!isMusicEnabled)}
+          >
+            Music {isMusicEnabled ? 'Off' : 'On'}
           </button>
           <div className="xp-footer-divider" aria-hidden="true" />
           <button
@@ -566,7 +585,7 @@ export default function App() {
               onCopy={(l) => handleForkLevel(l.id, l.title)}
               onLeaderboard={(_l) => {
                 setDetailLevel(null);
-                setView('browse'); 
+                setView('browse');
                 // This is a bit clumsy, but CommunityBrowse has the LB modal logic.
                 // For now, let's keep it simple.
               }}

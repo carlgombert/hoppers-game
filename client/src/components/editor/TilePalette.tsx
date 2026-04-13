@@ -21,6 +21,15 @@ export default function TilePalette({ selected, onSelect, pendingPortalId }: Pro
           <span className="xp-palette-swatch xp-palette-swatch--eraser" />
           <span className="xp-palette-label">Eraser</span>
         </button>
+        <button
+          type="button"
+          className={`xp-palette-tile${selected === 'glue' ? ' active' : ''}`}
+          onClick={() => onSelect('glue')}
+          title="Glue - Click tile edges to attach"
+        >
+          <span className="xp-palette-swatch" style={{ background: '#f0c040', border: '2px solid #b09020' }} />
+          <span className="xp-palette-label">Glue</span>
+        </button>
       </div>
 
       {/* Tile categories */}

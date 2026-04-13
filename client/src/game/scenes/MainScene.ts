@@ -59,6 +59,7 @@ export class MainScene extends Phaser.Scene {
   private ladderGroup!: Phaser.Physics.Arcade.StaticGroup;
   private iceGroup!: Phaser.Physics.Arcade.StaticGroup;
   private fallingLandGroup!: Phaser.Physics.Arcade.StaticGroup;
+  private staticTilesByCell = new Map<string, Phaser.Physics.Arcade.Image>();
 
   private player!: Phaser.Physics.Arcade.Sprite;
   private playerNameplate: Phaser.GameObjects.Text | null = null;
@@ -112,6 +113,9 @@ export class MainScene extends Phaser.Scene {
   private partyCode: string | null = null;
   private ghostSprites = new Map<string, Phaser.GameObjects.Sprite>();
   private ghostNameplates = new Map<string, Phaser.GameObjects.Text>();
+
+  private gluedHazardBlueprints = new Map<string, { unitId: number; relX: number; relY: number }>();
+  private climbingUnitVelocity = { x: 0, y: 0 };
   private moveEmitCounter = 0;
   private repeatingBackdrop: Phaser.GameObjects.TileSprite | null = null;
   private repeatingBackdropTextureKey: string | null = null;
@@ -137,6 +141,7 @@ export class MainScene extends Phaser.Scene {
       lava_still?: string;
       characters?: Record<string, { still: string; ladder?: string[]; jump?: string; run?: string[] }>;
       character?: string;
+      glue?: string;
     } | null;
     const backdropUrls = this.registry.get('backdropAssetUrls') as Record<string, string> | null;
     if (urls) {
@@ -168,6 +173,7 @@ export class MainScene extends Phaser.Scene {
       if (urls.boombox) this.load.image('tile_texture_boombox', urls.boombox);
       if (urls.falling_land) this.load.image('tile_texture_falling_land', urls.falling_land);
       if (urls.explosion) this.load.image('tile_texture_explosion', urls.explosion);
+      if (urls.glue) this.load.image('glue', urls.glue);
       if (urls.water_flow) {
         this.load.spritesheet('tile_texture_water_flow', urls.water_flow, {
           frameWidth: WATER_FRAME_SIZE,
@@ -366,10 +372,11 @@ export class MainScene extends Phaser.Scene {
 
     this.physics.add.collider(this.player, this.platforms);
     this.physics.add.collider(this.player, this.fallingLandGroup, this.onFallingLandContact, undefined, this);
-    this.physics.add.collider(this.player, this.movingBoxGroup);
+    this.physics.add.collider(this.player, this.movingBoxGroup, this.onMovingBoxContact, undefined, this);
     this.physics.add.collider(this.movingBoxGroup, this.platforms); // needed for blocked.left/right reversal
 
     this.physics.add.overlap(this.player, this.hazardGroup, this.onHazardOverlap, undefined, this);
+    this.physics.add.overlap(this.player, this.movingBoxGroup, this.onHazardOverlap, undefined, this);
     this.physics.add.overlap(this.player, this.waterGroup, this.onWaterOverlap, undefined, this);
     this.physics.add.overlap(this.player, this.lavaGroup, this.onLavaOverlap, undefined, this);
     this.physics.add.overlap(this.player, this.checkpointGroup, this.onCheckpoint, undefined, this);
@@ -502,37 +509,53 @@ export class MainScene extends Phaser.Scene {
         case 'demon_grass': {
           const img = this.platforms.create(cx, cy, textureKey) as Phaser.Physics.Arcade.Image;
           img.setDisplaySize(TILE, TILE);
+          img.setData('gridX', tile.x);
+          img.setData('gridY', tile.y);
           img.refreshBody();
+          img.setData('sourceGroup', this.platforms);
+          this.staticTilesByCell.set(`${tile.x},${tile.y}`, img);
           break;
         }
 
         case 'ladder': {
-          // Ladders are pass-through (not solid). Detection via ladderGroup for gravity suspension + climbing.
           const ladderSensor = this.ladderGroup.create(cx, cy, textureKey) as Phaser.Physics.Arcade.Image;
           ladderSensor.setDisplaySize(TILE, TILE);
+          ladderSensor.setData('gridX', tile.x);
+          ladderSensor.setData('gridY', tile.y);
+          ladderSensor.setData('ladder', true);
           ladderSensor.refreshBody();
+          ladderSensor.body?.setSize(TILE, TILE); // Explicit size for reliable mounting
+          ladderSensor.setData('sourceGroup', this.ladderGroup);
+          this.staticTilesByCell.set(`${tile.x},${tile.y}`, ladderSensor);
           break;
         }
 
         case 'ice': {
           const img = this.platforms.create(cx, cy, textureKey) as Phaser.Physics.Arcade.Image;
           img.setDisplaySize(TILE, TILE);
+          img.setData('gridX', tile.x);
+          img.setData('gridY', tile.y);
           img.refreshBody();
+          img.setData('sourceGroup', this.platforms);
           const iceSensor = this.iceGroup.create(cx, cy, textureKey) as Phaser.Physics.Arcade.Image;
           iceSensor.setDisplaySize(TILE, TILE);
           iceSensor.setAlpha(0);
           iceSensor.refreshBody();
+          this.staticTilesByCell.set(`${tile.x},${tile.y}`, img);
           break;
         }
 
         case 'falling_land': {
-          // Use the dedicated falling_land texture if available
           const texKey = this.textures.exists('tile_texture_falling_land') ? 'tile_texture_falling_land' : textureKey;
           const land = this.fallingLandGroup.create(cx, cy, texKey) as Phaser.Physics.Arcade.Image;
           land.setDisplaySize(TILE, TILE);
+          land.setData('gridX', tile.x);
+          land.setData('gridY', tile.y);
           land.setData('originalX', cx);
           land.setData('originalY', cy);
           land.refreshBody();
+          land.setData('sourceGroup', this.fallingLandGroup);
+          this.staticTilesByCell.set(`${tile.x},${tile.y}`, land);
           break;
         }
 
@@ -589,7 +612,14 @@ export class MainScene extends Phaser.Scene {
 
         case 'boombox': {
           this.boomboxSpawnCells.add(`${tile.x},${tile.y}`);
-          this.spawnBoomboxHazard(tile.x, tile.y);
+          const haz = this.spawnBoomboxHazard(tile.x, tile.y);
+          if (haz) {
+             haz.sensor.setData('gridX', tile.x);
+             haz.sensor.setData('gridY', tile.y);
+             haz.sensor.setData('sourceGroup', this.hazardGroup);
+             haz.sensor.setData('visualMirror', haz.visible);
+             this.staticTilesByCell.set(`${tile.x},${tile.y}`, haz.sensor);
+          }
           break;
         }
 
@@ -820,6 +850,8 @@ export class MainScene extends Phaser.Scene {
       this.timerText.setText(`${min}:${sec.toString().padStart(2, '0')}`);
     }
 
+    this.updateMovingBoxUnits();
+
     if (this.isDead || this.finished) return;
 
     // Emit position to party at ~20 fps (every 3 frames at 60fps)
@@ -870,19 +902,42 @@ export class MainScene extends Phaser.Scene {
     }
 
     this.onLadder = false;
-    this.ladderGroup.getChildren().forEach((child) => {
+    this.climbingUnitVelocity = { x: 0, y: 0 };
+
+    const checkLadderOverlap = (child: Phaser.GameObjects.GameObject) => {
       const ladderImg = child as Phaser.Physics.Arcade.Image;
-      const lb = ladderImg.body as Phaser.Physics.Arcade.StaticBody;
+      const lb = ladderImg.body as Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody;
+      if (!lb) return false;
+
       const playerCenterX = body.x + body.width / 2;
-      if (
+      const isOverlapping = (
         playerCenterX > lb.x &&
-        playerCenterX < lb.x + lb.width &&
+        playerCenterX < lb.right &&
         body.y + body.height > lb.y &&
-        body.y < lb.y + lb.height
-      ) {
+        body.y < lb.bottom
+      );
+
+      if (isOverlapping) {
         this.onLadder = true;
+        if (lb instanceof Phaser.Physics.Arcade.Body) {
+          this.climbingUnitVelocity = { x: lb.velocity.x, y: lb.velocity.y };
+        }
+        return true;
       }
-    });
+      return false;
+    };
+
+    this.ladderGroup.getChildren().some(checkLadderOverlap);
+    
+    if (!this.onLadder) {
+      this.movingBoxGroup.getChildren().some((child) => {
+        const box = child as Phaser.Physics.Arcade.Image;
+        if (box.getData('ladder')) {
+          return checkLadderOverlap(box);
+        }
+        return false;
+      });
+    }
 
     // Keep normal width on ground/ladder and narrow only while truly airborne.
     // Expand to grounded width only when there is clear horizontal space.
@@ -893,7 +948,7 @@ export class MainScene extends Phaser.Scene {
       this.setPlayerColliderWidth(PLAYER_W_GROUNDED);
     }
 
-    this.updateMovingBoxUnits();
+
 
     const goLeft = this.cursors.left.isDown || this.wasd.left.isDown;
     const goRight = this.cursors.right.isDown || this.wasd.right.isDown;
@@ -911,11 +966,11 @@ export class MainScene extends Phaser.Scene {
       body.setDragX(drag);
 
       if (goUp) {
-        body.setVelocityY(-180);
+        body.setVelocityY(-180 + this.climbingUnitVelocity.y);
       } else if (this.cursors.down.isDown) {
-        body.setVelocityY(180);
+        body.setVelocityY(180 + this.climbingUnitVelocity.y);
       } else {
-        body.setVelocityY(0);
+        body.setVelocityY(this.climbingUnitVelocity.y);
       }
 
       if (this.anims.exists(CLIMB_ANIM_KEY)) {
@@ -938,9 +993,11 @@ export class MainScene extends Phaser.Scene {
       }
 
       if (goLeft) {
-        body.setVelocityX(-PLAYER_SPEED);
+        body.setVelocityX(-PLAYER_SPEED + this.climbingUnitVelocity.x);
       } else if (goRight) {
-        body.setVelocityX(PLAYER_SPEED);
+        body.setVelocityX(PLAYER_SPEED + this.climbingUnitVelocity.x);
+      } else {
+        body.setVelocityX(this.climbingUnitVelocity.x);
       }
     } else {
       body.setAllowGravity(true);
@@ -1312,13 +1369,26 @@ export class MainScene extends Phaser.Scene {
 
   private spawnBoomboxHazard(tileX: number, tileY: number) {
     const cellKey = `${tileX},${tileY}`;
-    if (this.boomboxHazardsByCell.has(cellKey)) return;
+    if (this.boomboxHazardsByCell.has(cellKey)) return null;
 
     const textureKey = this.textures.exists('tile_texture_boombox')
       ? 'tile_texture_boombox'
       : 'tile_type_boombox';
-    const px = tileX * TILE;
-    const py = tileY * TILE;
+    
+    // Check if this was a glued hazard and reposition it to its unit
+    const blueprint = this.gluedHazardBlueprints.get(cellKey);
+    let px = tileX * TILE;
+    let py = tileY * TILE;
+
+    if (blueprint) {
+      const unit = this.movingBoxUnits.get(blueprint.unitId);
+      const ref = unit?.find(b => b.active);
+      if (ref) {
+        px = ref.x + blueprint.relX - TILE / 2;
+        py = ref.y + blueprint.relY - TILE / 2;
+      }
+    }
+
     const cx = px + TILE / 2;
     const cy = py + TILE / 2;
 
@@ -1331,10 +1401,42 @@ export class MainScene extends Phaser.Scene {
     sensor.setData('tileX', tileX);
     sensor.setData('tileY', tileY);
     sensor.setData('visibleHazard', visibleHazard);
+
+    // Re-migrate and Re-insert into unit if it was part of a unit
+    if (blueprint) {
+      this.hazardGroup.remove(sensor);
+      this.movingBoxGroup.add(sensor);
+      this.physics.add.existing(sensor, false);
+      const body = sensor.body as Phaser.Physics.Arcade.Body;
+      body.setAllowGravity(false);
+      body.setImmovable(true);
+      body.setSize(TILE, TILE);
+      
+      const dir = this.movingBoxUnitDirection.get(blueprint.unitId);
+      if (dir) {
+        const vel = this.velocityForDirection(dir);
+        body.setVelocity(vel.x, vel.y);
+      }
+      
+      sensor.setData('gridX', tileX);
+      sensor.setData('gridY', tileY);
+      sensor.setData('sourceGroup', this.hazardGroup);
+      sensor.setData('visualMirror', visibleHazard);
+      this.staticTilesByCell.set(`${tileX},${tileY}`, sensor);
+
+      // CRITICAL: Re-insert into unit boxes so the update loop sees it
+      const boxes = this.movingBoxUnits.get(blueprint.unitId);
+      if (boxes) {
+        boxes.push(sensor);
+      }
+    }
+
     sensor.setAlpha(0);
     sensor.refreshBody();
 
-    this.boomboxHazardsByCell.set(cellKey, { sensor, visible: visibleHazard });
+    const entry = { sensor, visible: visibleHazard };
+    this.boomboxHazardsByCell.set(cellKey, entry);
+    return entry;
   }
 
   private restoreRespawnHazards() {
@@ -1391,6 +1493,19 @@ export class MainScene extends Phaser.Scene {
     }
 
     return Array.from(byCell.values()).sort((a, b) => (a.y - b.y) || (a.x - b.x));
+  }
+
+  private onMovingBoxContact(
+    _playerObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
+    boxObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
+  ) {
+    if (this.isDead || this.finished) return;
+    const box = boxObj as Phaser.Physics.Arcade.Image;
+    const hazardType = box.getData('hazardType');
+    
+    if (hazardType === 'boombox') {
+      this.onHazardOverlap(_playerObj, boxObj);
+    }
   }
 
   private onFinish() {
@@ -1532,43 +1647,81 @@ export class MainScene extends Phaser.Scene {
     this.movingBoxUnitStuckFrames.clear();
     this.movingBoxUnitReverseCooldown.clear();
 
-    const visited = new Set<string>();
+    const visited = new Map<string, number>(); // cellKey -> unitId
     let unitId = 0;
 
-    for (const [startKey] of this.movingBoxesByCell) {
-      if (visited.has(startKey)) continue;
+    // First, find all moving_box tiles as seeds
+    const tileData: Tile[] = this.registry.get('tileData') ?? [];
+    const tileMap = new Map<string, Tile>();
+    tileData.forEach(t => tileMap.set(`${t.x},${t.y}`, t));
+
+    const movingBoxTiles = tileData.filter(t => t.type === 'moving_box');
+
+    for (const seed of movingBoxTiles) {
+      const seedKey = `${seed.x},${seed.y}`;
+      if (visited.has(seedKey)) continue;
 
       unitId += 1;
-      const queue = [startKey];
-      visited.add(startKey);
       const unitBoxes: Phaser.Physics.Arcade.Image[] = [];
-      const seedDirection =
-        (this.movingBoxesByCell.get(startKey)?.getData('moveDirection') as MovingDirection | undefined)
-        ?? 'right';
+      const queue = [seedKey];
+      visited.set(seedKey, unitId);
+      
+      const seedDirection = (seed.moveDirection ?? 'right') as MovingDirection;
 
       while (queue.length > 0) {
         const key = queue.shift()!;
-        const box = this.movingBoxesByCell.get(key);
+        const box = this.getStaticTileSprite(key);
+        
         if (box) {
           unitBoxes.push(box);
           box.setData('movingUnitId', unitId);
+          
+          // Migrate to movingBoxGroup to enable unified dynamic movement
+          if (box.getData('sourceGroup')) {
+            const group = box.getData('sourceGroup') as Phaser.Physics.Arcade.Group;
+            group.remove(box);
+            this.movingBoxGroup.add(box);
+          }
+          
+          // Ensure we have a dynamic body for movement and collision detection
+          if (box.body instanceof Phaser.Physics.Arcade.StaticBody) {
+             this.physics.add.existing(box, false);
+          }
+          
+          const body = box.body as Phaser.Physics.Arcade.Body;
+          if (body) {
+            body.setAllowGravity(false);
+            body.setImmovable(true);
+            // Ladders should not be solid blocks, otherwise player can't 'overlap' them to climb
+            if (box.getData('ladder')) {
+              body.checkCollision.none = true;
+            }
+          }
         }
 
-        const [sx, sy] = key.split(',').map((v) => Number(v));
+        const [sx, sy] = key.split(',').map(Number);
         const neighbors = [
-          `${sx + 1},${sy}`,
-          `${sx - 1},${sy}`,
-          `${sx},${sy + 1}`,
-          `${sx},${sy - 1}`,
+          { key: `${sx + 1},${sy}`, sideFacingNeighbor: 'right' as const, neighborSideFacingMe: 'left' as const },
+          { key: `${sx - 1},${sy}`, sideFacingNeighbor: 'left' as const, neighborSideFacingMe: 'right' as const },
+          { key: `${sx},${sy + 1}`, sideFacingNeighbor: 'down' as const, neighborSideFacingMe: 'up' as const },
+          { key: `${sx},${sy - 1}`, sideFacingNeighbor: 'up' as const, neighborSideFacingMe: 'down' as const },
         ];
 
-        for (const neighborKey of neighbors) {
-          const neighbor = this.movingBoxesByCell.get(neighborKey);
-          if (!neighbor || visited.has(neighborKey)) continue;
-          const neighborDirection = (neighbor.getData('moveDirection') as MovingDirection | undefined) ?? 'right';
-          if (neighborDirection !== seedDirection) continue;
-          visited.add(neighborKey);
-          queue.push(neighborKey);
+        const currentTile = tileMap.get(key);
+
+        for (const n of neighbors) {
+          if (visited.has(n.key)) continue;
+          
+          const neighborTile = tileMap.get(n.key);
+          if (!neighborTile) continue;
+
+          // Glue logic: Sticked if current tile has glue on neighbor side OR neighbor has glue on current tile side
+          const isGlued = (currentTile?.glue?.[n.sideFacingNeighbor]) || (neighborTile?.glue?.[n.neighborSideFacingMe]);
+          
+          if (isGlued) {
+            visited.set(n.key, unitId);
+            queue.push(n.key);
+          }
         }
       }
 
@@ -1579,11 +1732,74 @@ export class MainScene extends Phaser.Scene {
       this.movingBoxUnitStuckFrames.set(unitId, 0);
       this.movingBoxUnitReverseCooldown.set(unitId, 0);
       const velocity = this.velocityForDirection(seedDirection);
+      
       for (const box of unitBoxes) {
         const body = box.body as Phaser.Physics.Arcade.Body;
-        body.setVelocity(velocity.x, velocity.y);
+        if (body) body.setVelocity(velocity.x, velocity.y);
+
+        // Track relative blueprints for hazards/ladders so they respawn glued correctly
+        const gridX = box.getData('gridX');
+        const gridY = box.getData('gridY');
+        
+        if (gridX !== undefined && gridY !== undefined) {
+          const ref = unitBoxes[0];
+          const isLethal = box.getData('hazardType') === 'boombox';
+          const isLadder = box.getData('ladder') === true;
+          if (isLethal || isLadder) {
+            this.gluedHazardBlueprints.set(`${gridX},${gridY}`, {
+              unitId,
+              relX: box.x - ref.x,
+              relY: box.y - ref.y,
+            });
+          }
+        }
+
+        // Add visual glue attachments
+        if (gridX === undefined || gridY === undefined) continue;
+
+        const tile = tileMap.get(`${gridX},${gridY}`);
+        if (tile && tile.glue) {
+          (['up', 'down', 'left', 'right'] as const).forEach(side => {
+            const isLadder = tile.type === 'ladder';
+            const offsets = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
+            const nx = gridX + offsets[side].x;
+            const ny = gridY + offsets[side].y;
+            const neighbor = tileMap.get(`${nx},${ny}`);
+            
+            // Don't render glue if it's between two ladders
+            if (isLadder && neighbor?.type === 'ladder') return;
+
+            if (tile.glue?.[side]) {
+              this.createGlueAttachment(box, side);
+            } else {
+              // Also check if neighbor is glued to US
+              const opp = { up: 'down', down: 'up', left: 'right', right: 'left' } as const;
+              if (neighbor?.glue?.[opp[side]]) {
+                this.createGlueAttachment(box, side);
+              }
+            }
+          });
+        }
       }
     }
+  }
+
+  private createGlueAttachment(parent: Phaser.Physics.Arcade.Image, side: 'up' | 'down' | 'left' | 'right') {
+    const rotationMap = { up: 90, right: 180, down: 270, left: 0 };
+    const glue = this.add.image(parent.x, parent.y, 'glue')
+      .setDisplaySize(TILE, TILE)
+      .setDepth(30)
+      .setAngle(rotationMap[side]);
+    
+    const attachments = parent.getData('glueAttachments') || [];
+    attachments.push(glue);
+    parent.setData('glueAttachments', attachments);
+  }
+
+  private getStaticTileSprite(key: string): Phaser.Physics.Arcade.Image | null {
+    return this.staticTilesByCell.get(key) 
+      || this.movingBoxesByCell.get(key) 
+      || null;
   }
 
   private updateMovingBoxUnits() {
@@ -1600,6 +1816,7 @@ export class MainScene extends Phaser.Scene {
       }
 
       for (const box of boxes) {
+        if (!box.active) continue;
         const body = box.body as Phaser.Physics.Arcade.Body;
         if (!body || !body.enable) continue;
 
@@ -1620,6 +1837,22 @@ export class MainScene extends Phaser.Scene {
         if (hitWall || hitBounds) {
           shouldReverse = true;
           break;
+        }
+
+        // Sync glue attachments
+        const attachments = box.getData('glueAttachments') as Phaser.GameObjects.Image[];
+        if (attachments) {
+          attachments.forEach(g => {
+            g.x = box.x;
+            g.y = box.y;
+          });
+        }
+
+        // Sync visual mirror (for hazards/boomboxes)
+        const mirror = box.getData('visualMirror') as Phaser.GameObjects.Image;
+        if (mirror) {
+          mirror.x = box.x - TILE / 2;
+          mirror.y = box.y - TILE / 2;
         }
       }
 
@@ -1655,9 +1888,15 @@ export class MainScene extends Phaser.Scene {
       this.movingBoxUnitLastProgressCoord.set(unitId, progressCoord);
       this.movingBoxUnitStuckFrames.set(unitId, stuckFrames);
       this.movingBoxUnitReverseCooldown.set(unitId, cooldown);
+      // Clean up inactive/destroyed boxes periodically to prevent memory leaks in the unit array
+      if (this.time.now % 100 < 20) {
+        this.movingBoxUnits.set(unitId, boxes.filter(b => b.active));
+      }
+      
       const velocity = this.velocityForDirection(direction);
 
       for (const box of boxes) {
+        if (!box.active) continue;
         const body = box.body as Phaser.Physics.Arcade.Body;
         if (!body || !body.enable) continue;
         body.setVelocity(velocity.x, velocity.y);

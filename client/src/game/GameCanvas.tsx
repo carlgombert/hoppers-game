@@ -33,6 +33,7 @@ import waterFlowTexUrl from '../assets/game-assets/textures/water_flow.png?url';
 import waterStillTexUrl from '../assets/game-assets/textures/water_still.png?url';
 import lavaFlowTexUrl from '../assets/game-assets/textures/lava_flow.png?url';
 import lavaStillTexUrl from '../assets/game-assets/textures/lava_still.png?url';
+import glueTexUrl from '../assets/game-assets/textures/glue.png?url';
 import mountainsBackdropUrl from '../assets/mountains.jpg?url';
 import cityBackdropUrl from '../assets/city.png?url';
 import { DEFAULT_CHARACTER_KEY } from '../types/characters';
@@ -68,9 +69,9 @@ const TILE_ASSET_URLS = {
   explosion: explosionGifUrl,
   water_flow: waterFlowTexUrl,
   water_still: waterStillTexUrl,
-  lava_flow: lavaFlowTexUrl,
   lava_still: lavaStillTexUrl,
   falling_land: fallingLandTexUrl,
+  glue: glueTexUrl,
 } as const;
 
 const BACKDROP_ASSET_URLS = {
