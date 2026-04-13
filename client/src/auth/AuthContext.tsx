@@ -35,7 +35,7 @@ const TOKEN_KEY = 'hoppers_token';
 const USER_KEY = 'hoppers_user';
 
 // Use the same fallback as our API client
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://hoppers-game-production.up.railway.app';
 
 async function apiFetch(path: string, options?: RequestInit): Promise<Response> {
   return fetch(`${API_BASE}${path}`, {

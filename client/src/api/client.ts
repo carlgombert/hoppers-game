@@ -1,6 +1,6 @@
 import { type Tile } from '../types/level';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://hoppers-game-production.up.railway.app';
 
 // ── Token storage ────────────────────────────────────────────────────────────
 

@@ -131,7 +131,7 @@ async function main() {
 
   const app = express();
 
-  app.use(cors({ origin: process.env.CLIENT_ORIGIN ?? 'http://localhost:5173' }));
+  app.use(cors({ origin: [process.env.CLIENT_ORIGIN ?? 'http://localhost:5173', 'https://client-production-ebd4.up.railway.app'] }));
   app.use(express.json({ limit: '10mb' })); // 10mb for base64 thumbnails
 
   // Routes
@@ -145,7 +145,7 @@ async function main() {
   // HTTP + Socket.io
   const httpServer = http.createServer(app);
   const io = new IOServer(httpServer, {
-    cors: { origin: process.env.CLIENT_ORIGIN ?? 'http://localhost:5173' },
+    cors: { origin: [process.env.CLIENT_ORIGIN ?? 'http://localhost:5173', 'https://client-production-ebd4.up.railway.app'] },
   });
 
   // ── Socket auth middleware ───────────────────────────────────────────────
