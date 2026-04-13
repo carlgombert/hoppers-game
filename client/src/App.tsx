@@ -20,7 +20,9 @@ import {
   createLevel,
   patchLevel,
   deleteLevel,
+  forkLevel,
   type ApiLevel,
+  type PublishedLevel,
 } from './api/client';
 import { type Level } from './types/level';
 import { normalizeBackdropId } from './game/backdrops';
@@ -155,7 +157,7 @@ export default function App() {
 
   // ── Event handlers ────────────────────────────────────────────────────────
 
-  const activeNavId: NavId = view === 'game' ? 'levels' : view;
+  const activeNavId: NavId = (view === 'game' || view === 'level-details') ? 'levels' : view;
   const currentNav = navForView(view);
 
   function goToEditor(level?: Level) {
@@ -562,7 +564,7 @@ export default function App() {
               }}
               onEdit={(l) => goToEditor(l)}
               onCopy={(l) => handleForkLevel(l.id, l.title)}
-              onLeaderboard={(l) => {
+              onLeaderboard={(_l) => {
                 setDetailLevel(null);
                 setView('browse'); 
                 // This is a bit clumsy, but CommunityBrowse has the LB modal logic.

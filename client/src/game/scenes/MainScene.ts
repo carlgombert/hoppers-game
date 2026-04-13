@@ -18,8 +18,6 @@ const ICE_DRAG = 80;
 const ICE_ACCEL = 400;
 const MOVING_BOX_SPEED = 80;
 const FALL_CRUMBLE_DELAY = 400;
-const WATER_OVERLAY_FILL = 0x2f6fb3;
-const LAVA_OVERLAY_FILL = 0xb3302f;
 const WATER_OVERLAY_DEPTH = 5.5;
 const WATER_TEXTURE_DEPTH = 5.6;
 const WATER_TEXTURE_ALPHA = 0.45;
@@ -331,12 +329,14 @@ export class MainScene extends Phaser.Scene {
     this.player.setDepth(CHARACTER_SPRITE_DEPTH);
 
     // Create climbing animation for current character
-    const urls = this.registry.get('assetUrls') as {
-      characters?: Record<string, { still: string; ladder?: string[] }>;
-    } | null;
-    const charConfig = urls?.characters?.[this.selectedCharacterKey];
+    const charConfig = urls?.characters?.[this.selectedCharacterKey] as {
+      still: string;
+      ladder?: string[];
+      jump?: string;
+      run?: string[];
+    } | undefined;
     if (charConfig?.ladder) {
-      const frames = charConfig.ladder.map((_, i) => ({
+      const frames = charConfig.ladder.map((_: string, i: number) => ({
         key: `character_${this.selectedCharacterKey}_ladder_${i + 1}`,
       }));
       this.anims.create({
@@ -348,7 +348,7 @@ export class MainScene extends Phaser.Scene {
     }
 
     if (charConfig?.run) {
-      const frames = charConfig.run.map((_, i) => ({
+      const frames = charConfig.run.map((_: string, i: number) => ({
         key: `character_${this.selectedCharacterKey}_run_${i + 1}`,
       }));
       this.anims.create({

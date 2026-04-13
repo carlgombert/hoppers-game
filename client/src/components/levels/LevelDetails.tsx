@@ -1,4 +1,3 @@
-import React from 'react';
 import { type Level } from '../../types/level';
 import { type PublishedLevel } from '../../api/client';
 import purpleGradient from '../../assets/purple_gradient.jpg';

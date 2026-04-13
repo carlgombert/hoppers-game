@@ -3,8 +3,6 @@ import { type Tile, type Level, type TileType, type EditorTool } from '../../typ
 import TilePalette from './TilePalette';
 import TileCanvas from './TileCanvas';
 import GameCanvas from '../../game/GameCanvas';
-import SvgIcon from '../SvgIcon';
-import ChromeIcon from '../ChromeIcon';
 import { BACKDROP_OPTIONS, normalizeBackdropId } from '../../game/backdrops';
 
 const MAX_UNDO = 50;
