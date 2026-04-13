@@ -146,13 +146,23 @@ async function main() {
   }
 
   const app = express();
+  
+  // Railway handles SSL at the edge; trust their proxy headers
+  app.set('trust proxy', true);
 
+  // Global CORS and Preflight handling
   app.use(cors({ 
     origin: true, 
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
   }));
+
+  // Explicitly handle all OPTIONS requests early to prevent 502/504 at the edge
+  app.options('*', (_req, res) => {
+    res.sendStatus(204);
+  });
+
   app.use(express.json({ limit: '10mb' })); // 10mb for base64 thumbnails
 
   // Routes
@@ -161,7 +171,8 @@ async function main() {
   app.use('/parties', partiesRouter);
   app.use('/saves', savesRouter);
 
-  app.get('/health', (_req, res) => res.json({ ok: true }));
+  app.get('/', (_req, res) => res.send('Hoppers API Online'));
+  app.get('/health', (_req, res) => res.json({ ok: true, timestamp: new Date(), env: process.env.NODE_ENV }));
 
   // HTTP + Socket.io
   const httpServer = http.createServer(app);
