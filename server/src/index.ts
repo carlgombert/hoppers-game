@@ -11,7 +11,7 @@ import levelsRouter from './routes/levels';
 import partiesRouter from './routes/parties';
 import savesRouter from './routes/saves';
 
-const PORT = process.env.PORT ?? 3001;
+const PORT = Number(process.env.PORT || 3001);
 const JWT_SECRET = process.env.JWT_SECRET ?? 'hoppers_dev_secret';
 
 function closeHttpServer(server: http.Server) {
