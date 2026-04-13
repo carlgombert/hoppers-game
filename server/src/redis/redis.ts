@@ -16,6 +16,10 @@ if (redisUrl) {
   console.log(`Connecting to Redis at: ${masked}`);
 }
 
+if (!redisUrl && process.env.NODE_ENV === 'production' && !process.env.RAILWAY_ENVIRONMENT) {
+  throw new Error('❌ CRITICAL: No Redis connection variables found in production environment.');
+}
+
 export const redis = createClient({
   url: redisUrl ?? 'redis://localhost:6379',
 });
