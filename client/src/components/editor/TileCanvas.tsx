@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { type Tile, type EditorTool, TILE_META } from '../../types/level';
+import { type Tile, type TileType, type EditorTool, TILE_META } from '../../types/level';
 
 const CELL = 20; // display pixel size per grid cell in the editor
 export const EDITOR_COLS = 40;

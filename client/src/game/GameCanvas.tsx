@@ -31,7 +31,6 @@ import boomboxTexUrl from '../assets/game-assets/textures/boombox.png?url';
 import explosionGifUrl from '../assets/game-assets/textures/explosion.gif?url';
 import waterFlowTexUrl from '../assets/game-assets/textures/water_flow.png?url';
 import waterStillTexUrl from '../assets/game-assets/textures/water_still.png?url';
-import lavaFlowTexUrl from '../assets/game-assets/textures/lava_flow.png?url';
 import lavaStillTexUrl from '../assets/game-assets/textures/lava_still.png?url';
 import laserMidUrl from '../assets/game-assets/textures/laser-mid.png?url';
 import laserSideUrl from '../assets/game-assets/textures/laser-side.png?url';

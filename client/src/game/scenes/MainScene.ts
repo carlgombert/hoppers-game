@@ -2010,8 +2010,8 @@ export class MainScene extends Phaser.Scene {
 
         // BFS Neighbors via glue
         const tile = tileMap.get(key);
-        if (tile?.glue) {
-          const sides = [
+        if (tile && tile.glue) {
+          const sides: Array<{ s: 'up' | 'down' | 'left' | 'right', dx: number, dy: number }> = [
             { s: 'up', dx: 0, dy: -1 },
             { s: 'down', dx: 0, dy: 1 },
             { s: 'left', dx: -1, dy: 0 },
@@ -2019,7 +2019,10 @@ export class MainScene extends Phaser.Scene {
           ];
           for (const { s, dx, dy } of sides) {
             const neighboringKey = `${bx + dx},${by + dy}`;
-            const isGlued = (tile.glue as any)[s] || tileMap.get(neighboringKey)?.glue?.[({ up: 'down', down: 'up', left: 'right', right: 'left' } as any)[s]];
+            const glue = tile.glue;
+            const neighborGlue = tileMap.get(neighboringKey)?.glue;
+            const opposite: Record<string, 'up' | 'down' | 'left' | 'right'> = { up: 'down', down: 'up', left: 'right', right: 'left' };
+            const isGlued = (glue && glue[s]) || (neighborGlue && neighborGlue[opposite[s]]);
             if (isGlued && !visited.has(neighboringKey)) {
               const neighborSprite = this.getStaticTileSprite(neighboringKey);
               if (neighborSprite) {
@@ -2038,7 +2041,8 @@ export class MainScene extends Phaser.Scene {
             const neighbor = tileMap.get(`${bx + offsets[side].x},${by + offsets[side].y}`);
             if (isLadder && neighbor?.type === 'ladder') return;
             if (tile.type === 'spinning_block') return;
-            if (tile.glue?.[side] || neighbor?.glue?.[({ 'up': 'down', 'down': 'up', 'left': 'right', 'right': 'left' }[side] as any)]) {
+            const opposite: Record<string, 'up' | 'down' | 'left' | 'right'> = { up: 'down', down: 'up', left: 'right', right: 'left' };
+            if (tile.glue?.[side] || neighbor?.glue?.[opposite[side]]) {
               this.createGlueAttachment(box, side);
             }
           });
@@ -2393,7 +2397,7 @@ export class MainScene extends Phaser.Scene {
 
         // Draw debug outline for this SAT box
         if (this.satDebugGfx && this.colliderDebugVisible) {
-          this.satDebugGfx.strokePoints(boxVerts, true);
+          this.satDebugGfx.strokePoints(boxVerts as unknown as Phaser.Math.Vector2[], true);
         }
 
         const mtv = this.checkSATCollision(playerVerts, boxVerts);
@@ -2401,7 +2405,7 @@ export class MainScene extends Phaser.Scene {
         if (mtv) {
           // If this member is a hazard, trigger death instead of resolving position
           if (box.getData('hazardType') === 'boombox') {
-            this.onHazardOverlap(this.player, box);
+            this.onHazardOverlap(this.player as any, box as any);
             return;
           }
 
@@ -2417,7 +2421,7 @@ export class MainScene extends Phaser.Scene {
              const currentAngle = unit.angle + member.initAngle;
              // Tangential Velocity V = omega * r
              const vx = -speed * member.radius * Math.sin(currentAngle);
-             const vy = speed * member.radius * Math.cos(currentAngle);
+             // const vy = speed * member.radius * Math.cos(currentAngle);
              this.player.x += vx; 
           }
           if (mtv.y > 0 && Math.abs(mtv.y) > Math.abs(mtv.x)) playerBody.blocked.up = true;
@@ -2429,7 +2433,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   private getRotatedVertices(sprite: Phaser.GameObjects.Components.Transform & Phaser.GameObjects.Components.Size): { x: number; y: number }[] {
-    const { x, y, width, height, rotation } = sprite as any;
+    const { x, y, rotation } = sprite as any;
     const wH = TILE / 2; // Use TILE size for collider regardless of sprite display size
     const corners = [
       { x: -wH, y: -wH },
