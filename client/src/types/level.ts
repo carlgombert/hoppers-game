@@ -7,6 +7,7 @@ export type TileType =
   | 'ice'
   | 'boombox'
   | 'moving_box'
+  | 'spinning_block'
   | 'falling_land'
   | 'ladder'
   | 'portal'
@@ -49,6 +50,7 @@ export interface TileMeta {
   color: string;
   gloss: string; // highlight color for bevel
   category: string;
+  hidden?: boolean;
 }
 
 export const TILE_META: Record<TileType, TileMeta> = {
@@ -59,6 +61,7 @@ export const TILE_META: Record<TileType, TileMeta> = {
   falling_land:    { label: 'Falling Land', color: '#886030', gloss: '#b89060', category: 'Platforms' },
   ladder:          { label: 'Ladder',       color: '#b89820', gloss: '#e0c050', category: 'Platforms' },
   moving_box:      { label: 'Moving Box',   color: '#7040a0', gloss: '#a878d0', category: 'Dynamic'  },
+  spinning_block:  { label: 'Spinning Block', color: '#b88a20', gloss: '#e8c048', category: 'Dynamic', hidden: true },
   water:           { label: 'Water',        color: '#2060b0', gloss: '#4898e0', category: 'Hazards'  },
   lava:            { label: 'Lava',         color: '#c04020', gloss: '#e87040', category: 'Hazards'  },
   boombox:         { label: 'Boombox',      color: '#b87020', gloss: '#e8a048', category: 'Hazards'  },

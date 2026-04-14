@@ -35,7 +35,7 @@ export default function TilePalette({ selected, onSelect, pendingPortalId }: Pro
       {/* Tile categories */}
       {TILE_CATEGORIES.map((cat) => {
         const entries = (Object.entries(TILE_META) as [TileType, (typeof TILE_META)[TileType]][])
-          .filter(([, meta]) => meta.category === cat);
+          .filter(([, meta]) => meta.category === cat && !meta.hidden);
         return (
           <div key={cat} className="xp-palette-group">
             <div className="xp-pane-heading">{cat.toUpperCase()}</div>

@@ -33,6 +33,9 @@ import waterFlowTexUrl from '../assets/game-assets/textures/water_flow.png?url';
 import waterStillTexUrl from '../assets/game-assets/textures/water_still.png?url';
 import lavaFlowTexUrl from '../assets/game-assets/textures/lava_flow.png?url';
 import lavaStillTexUrl from '../assets/game-assets/textures/lava_still.png?url';
+import laserMidUrl from '../assets/game-assets/textures/laser-mid.png?url';
+import laserSideUrl from '../assets/game-assets/textures/laser-side.png?url';
+import laserSingleUrl from '../assets/game-assets/textures/laser-single.png?url';
 import glueTexUrl from '../assets/game-assets/textures/glue.png?url';
 import mountainsBackdropUrl from '../assets/mountains.jpg?url';
 import cityBackdropUrl from '../assets/city.png?url';
@@ -71,6 +74,9 @@ const TILE_ASSET_URLS = {
   water_still: waterStillTexUrl,
   lava_still: lavaStillTexUrl,
   falling_land: fallingLandTexUrl,
+  laser_mid: laserMidUrl,
+  laser_side: laserSideUrl,
+  laser_single: laserSingleUrl,
   glue: glueTexUrl,
 } as const;
 

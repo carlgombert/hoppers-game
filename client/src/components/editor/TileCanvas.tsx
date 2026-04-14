@@ -87,6 +87,14 @@ export default function TileCanvas({
         ctx.fillText(symbol, px + CELL / 2, py + CELL / 2 + 1);
       }
 
+      if (tile.type === 'spinning_block') {
+        ctx.fillStyle = 'rgba(255,255,255,0.78)';
+        ctx.font = `bold ${CELL - 4}px Tahoma, Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('↻', px + CELL / 2, py + CELL / 2 + 1);
+      }
+
       // Glue rendering
       if (tile.glue) {
         ctx.fillStyle = '#f0c040';
