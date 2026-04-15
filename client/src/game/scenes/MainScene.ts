@@ -1,238 +1,142 @@
+/**
+ * MainScene — Thin orchestrator that delegates to system modules.
+ *
+ * All game state lives here as public properties so system functions
+ * can read and mutate it. The scene lifecycle methods (preload, create,
+ * update, shutdown) simply call into the appropriate system modules.
+ */
 import * as Phaser from 'phaser';
 import { type Socket } from 'socket.io-client';
-import { type Tile, TILE_META } from '../../types/level';
+import { type Tile } from '../../types/level';
+import { TILE, PLAYER_W_GROUNDED } from '../constants';
 import { DEMO_LEVEL_TILES } from '../demoLevel';
-import { DEFAULT_BACKDROP_ID, normalizeBackdropId } from '../backdrops';
+import type { MovingDirection } from '../types';
+import type { SpinningUnit } from '../systems/SpinningSystem';
+import type { BackdropState } from '../systems/BackdropRenderer';
 
-const TILE = 40;
-const PLAYER_W_GROUNDED = 40;
-const PLAYER_W_AIRBORNE = 28;
-const PLAYER_H = 56;
-const PLAYER_SPRITE_SIZE = 64;
-const LADDER_SPRITE_SIZE = 68;
-const PLAYER_SPEED = 200;
-const PLAYER_ACCEL = 900;
-const PLAYER_DRAG = 800;
-const JUMP_VELOCITY = -420;
-const ICE_DRAG = 80;
-const ICE_ACCEL = 400;
-const MOVING_BOX_SPEED = 80;
-const FALL_CRUMBLE_DELAY = 400;
-const WATER_OVERLAY_FILL = 0x2f6fb3;
-const WATER_OVERLAY_DEPTH = 5.5;
-const WATER_TEXTURE_DEPTH = 5.6;
-const WATER_TEXTURE_ALPHA = 0.45;
-const WATER_FRAME_SIZE = 16;
-const WATER_FLOW_ANIM_KEY = 'water_flow';
-const WATER_STILL_ANIM_KEY = 'water_still';
-const LAVA_FLOW_ANIM_KEY = 'lava_flow';
-const LAVA_STILL_ANIM_KEY = 'lava_still';
-const CLIMB_ANIM_KEY = 'climb';
-const RUN_ANIM_KEY = 'run';
-const WATER_RUNTIME_ROWS = 24;
-const WATER_BACKDROP_IDS = new Set(['mountains', 'city']);
-const PORTAL_COOLDOWN_MS = 3000;
-const MOVING_BOX_STUCK_FRAMES = 12;
-const MOVING_BOX_PROGRESS_EPSILON = 0.2;
-const MOVING_BOX_REVERSE_COOLDOWN_FRAMES = 8;
-const MOVING_BOX_UNSTICK_NUDGE = 2;
-const CHARACTER_RENDER_Y_OFFSET = 3;
-const NICK_RENDER_Y_OFFSET = 4;
-const CHARACTER_SPRITE_DEPTH = 20;
-const CHARACTER_NAMEPLATE_DEPTH = 21;
-const HAZARD_TEXTURE_DEPTH = 7;
-
-type MovingDirection = 'left' | 'right' | 'up' | 'down';
-
-function getCharacterRenderYOffset(characterKey: string | null | undefined): number {
-  return characterKey === 'nick' ? NICK_RENDER_Y_OFFSET : CHARACTER_RENDER_Y_OFFSET;
-}
+// ── System imports ─────────────────────────────────────────────────────────
+import * as AssetLoader from '../systems/AssetLoader';
+import * as TileBuilder from '../systems/TileBuilder';
+import * as PlayerController from '../systems/PlayerController';
+import * as PhysicsSetup from '../systems/PhysicsSetup';
+import * as MovingBoxSystem from '../systems/MovingBoxSystem';
+import * as SpinningSystem from '../systems/SpinningSystem';
+import * as HazardSystem from '../systems/HazardSystem';
+import * as PortalSystem from '../systems/PortalSystem';
+import * as FallingLandSystem from '../systems/FallingLandSystem';
+import * as MultiplayerSystem from '../systems/MultiplayerSystem';
+import * as BackdropRenderer from '../systems/BackdropRenderer';
+import * as UIOverlay from '../systems/UIOverlay';
 
 export class MainScene extends Phaser.Scene {
-  private platforms!: Phaser.Physics.Arcade.StaticGroup;
-  private movingBoxGroup!: Phaser.Physics.Arcade.Group;
-  private hazardGroup!: Phaser.Physics.Arcade.StaticGroup;
-  private waterGroup!: Phaser.Physics.Arcade.StaticGroup;
-  private lavaGroup!: Phaser.Physics.Arcade.StaticGroup;
-  private checkpointGroup!: Phaser.Physics.Arcade.StaticGroup;
-  private finishGroup!: Phaser.Physics.Arcade.StaticGroup;
-  private portalGroup!: Phaser.Physics.Arcade.StaticGroup;
-  private ladderGroup!: Phaser.Physics.Arcade.StaticGroup;
-  private iceGroup!: Phaser.Physics.Arcade.StaticGroup;
-  private fallingLandGroup!: Phaser.Physics.Arcade.StaticGroup;
-  private staticTilesByCell = new Map<string, Phaser.Physics.Arcade.Image>();
+  // ── Physics groups ─────────────────────────────────────────────────────────
+  platforms!: Phaser.Physics.Arcade.StaticGroup;
+  movingBoxGroup!: Phaser.Physics.Arcade.Group;
+  hazardGroup!: Phaser.Physics.Arcade.StaticGroup;
+  waterGroup!: Phaser.Physics.Arcade.StaticGroup;
+  lavaGroup!: Phaser.Physics.Arcade.StaticGroup;
+  checkpointGroup!: Phaser.Physics.Arcade.StaticGroup;
+  finishGroup!: Phaser.Physics.Arcade.StaticGroup;
+  portalGroup!: Phaser.Physics.Arcade.StaticGroup;
+  ladderGroup!: Phaser.Physics.Arcade.StaticGroup;
+  iceGroup!: Phaser.Physics.Arcade.StaticGroup;
+  fallingLandGroup!: Phaser.Physics.Arcade.StaticGroup;
+  staticTilesByCell = new Map<string, Phaser.Physics.Arcade.Image>();
 
-  private player!: Phaser.Physics.Arcade.Sprite;
-  private playerNameplate: Phaser.GameObjects.Text | null = null;
-  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private wasd!: {
+  // ── Player ─────────────────────────────────────────────────────────────────
+  player!: Phaser.Physics.Arcade.Sprite;
+  playerNameplate: Phaser.GameObjects.Text | null = null;
+  cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+  wasd!: {
     up: Phaser.Input.Keyboard.Key;
     left: Phaser.Input.Keyboard.Key;
     right: Phaser.Input.Keyboard.Key;
   };
 
-  private spawnX = TILE * 2;
-  private spawnY = TILE * 2; // Anchor to the tile floor
-  private checkpointX: number | null = null;
-  private checkpointY: number | null = null;
-  private isDead = false;
-  private onLadder = false;
-  private isOnIce = false;
+  spawnX = TILE * 2;
+  spawnY = TILE * 2;
+  checkpointX: number | null = null;
+  checkpointY: number | null = null;
+  isDead = false;
+  onLadder = false;
+  isOnIce = false;
+  finished = false;
+  flagStartFound = false;
+  killPlaneY = 0;
+  currentPlayerColliderW = PLAYER_W_GROUNDED;
+  selectedCharacterKey = 'sora';
+  climbingUnitVelocity = { x: 0, y: 0 };
 
-  private portalPositions = new Map<string, Array<{ x: number; y: number }>>();
-  private portalCooldown = false;
-  private colliderDebugVisible = true;
-  private debugToggleKey!: Phaser.Input.Keyboard.Key;
-  private satDebugGfx: Phaser.GameObjects.Graphics | null = null;
+  // ── Portal state ───────────────────────────────────────────────────────────
+  portalPositions = new Map<string, Array<{ x: number; y: number }>>();
+  portalCooldown = false;
 
-  // Use performance.now() for the start baseline so the timer is independent
-  // of Phaser's internal scene clock (which may not be 0 at create() time).
-  private startTime = 0;
-  private timerText: Phaser.GameObjects.Text | null = null;
-  private finished = false;
+  // ── Timer / UI ─────────────────────────────────────────────────────────────
+  startTime = 0;
+  timerText: Phaser.GameObjects.Text | null = null;
+  colliderDebugVisible = true;
+  debugToggleKey!: Phaser.Input.Keyboard.Key;
+  satDebugGfx: Phaser.GameObjects.Graphics | null = null;
 
-  private flagStartFound = false;
-  private killPlaneY = 0;
-  private currentPlayerColliderW = PLAYER_W_GROUNDED;
-  private selectedCharacterKey = 'sora';
+  // ── Falling land ───────────────────────────────────────────────────────────
+  fallingLandCrumbling = new Set<Phaser.Physics.Arcade.Image>();
 
-  private fallingLandCrumbling = new Set<Phaser.Physics.Arcade.Image>();
-  private waterSurfaceByColumn = new Map<number, number>();
-  private movingBoxesByCell = new Map<string, Phaser.Physics.Arcade.Image>();
-  private movingBoxUnits = new Map<number, Phaser.Physics.Arcade.Image[]>();
-  private movingBoxUnitDirection = new Map<number, MovingDirection>();
-  private movingBoxUnitLastProgressCoord = new Map<number, number>();
-  private movingBoxUnitStuckFrames = new Map<number, number>();
-  private movingBoxUnitReverseCooldown = new Map<number, number>();
-  private boomboxSpawnCells = new Set<string>();
-  private boomboxHazardsByCell = new Map<
+  // ── Water ──────────────────────────────────────────────────────────────────
+  waterSurfaceByColumn = new Map<number, number>();
+
+  // ── Moving boxes ───────────────────────────────────────────────────────────
+  movingBoxesByCell = new Map<string, Phaser.Physics.Arcade.Image>();
+  movingBoxUnits = new Map<number, Phaser.Physics.Arcade.Image[]>();
+  movingBoxUnitDirection = new Map<number, MovingDirection>();
+  movingBoxUnitLastProgressCoord = new Map<number, number>();
+  movingBoxUnitStuckFrames = new Map<number, number>();
+  movingBoxUnitReverseCooldown = new Map<number, number>();
+
+  // ── Boombox / hazards ──────────────────────────────────────────────────────
+  boomboxSpawnCells = new Set<string>();
+  boomboxHazardsByCell = new Map<
     string,
     { sensor: Phaser.Physics.Arcade.Image; visible: Phaser.GameObjects.Image }
   >();
-
-  // ── Multiplayer ghost sprites ──────────────────────────────────────────────
-  private socket: Socket | null = null;
-  private partyCode: string | null = null;
-  private ghostSprites = new Map<string, Phaser.GameObjects.Sprite>();
-  private ghostNameplates = new Map<string, Phaser.GameObjects.Text>();
-
-  private gluedHazardBlueprints = new Map<string, { 
-    unitId: number; 
-    relX: number; 
-    relY: number; 
+  gluedHazardBlueprints = new Map<string, {
+    unitId: number;
+    relX: number;
+    relY: number;
     isSpinning?: boolean;
     radius?: number;
     initAngle?: number;
   }>();
-  private spinningUnits = new Map<number, {
-    center: Phaser.Physics.Arcade.Image;
-    members: Array<{
-      sprite: Phaser.Physics.Arcade.Image;
-      radius: number;
-      initAngle: number;
-    }>;
-    angle: number;
-  }>();
 
-  private climbingUnitVelocity = { x: 0, y: 0 };
-  private moveEmitCounter = 0;
-  private repeatingBackdrop: Phaser.GameObjects.TileSprite | null = null;
-  private repeatingBackdropTextureKey: string | null = null;
+  // ── Spinning units ─────────────────────────────────────────────────────────
+  spinningUnits = new Map<number, SpinningUnit>();
+
+  // ── Multiplayer ────────────────────────────────────────────────────────────
+  socket: Socket | null = null;
+  partyCode: string | null = null;
+  ghostSprites = new Map<string, Phaser.GameObjects.Sprite>();
+  ghostNameplates = new Map<string, Phaser.GameObjects.Text>();
+  moveEmitCounter = 0;
+
+  // ── Backdrop ───────────────────────────────────────────────────────────────
+  private backdropState: BackdropState = {
+    repeatingBackdrop: null,
+    repeatingBackdropTextureKey: null,
+  };
 
   constructor() {
     super({ key: 'MainScene' });
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Lifecycle
+  // ═══════════════════════════════════════════════════════════════════════════
+
   preload() {
-    // Load game-asset URLs passed from GameCanvas via game.registry
-    const urls = this.registry.get('assetUrls') as {
-      land?: string;
-      grass?: string;
-      demon_grass?: string;
-      ladder?: string;
-      moving_box?: string;
-      boombox?: string;
-      falling_land?: string;
-      explosion?: string;
-      water_flow?: string;
-      water_still?: string;
-      lava_flow?: string;
-      lava_still?: string;
-      laser_single?: string;
-      laser_mid?: string;
-      laser_side?: string;
-      characters?: Record<string, { still: string; ladder?: string[]; jump?: string; run?: string[] }>;
-      character?: string;
-      glue?: string;
-    } | null;
-    const backdropUrls = this.registry.get('backdropAssetUrls') as Record<string, string> | null;
-    if (urls) {
-      // Load each available character skin so remote players can use their own sprite.
-      if (urls.characters) {
-        Object.entries(urls.characters).forEach(([key, config]) => {
-          this.load.image(`character_${key}_still`, config.still);
-          if (config.ladder) {
-            config.ladder.forEach((url, i) => {
-              this.load.image(`character_${key}_ladder_${i + 1}`, url);
-            });
-          }
-          if (config.jump) {
-            this.load.image(`character_${key}_jump`, config.jump);
-          }
-          if (config.run) {
-            config.run.forEach((url, i) => {
-              this.load.image(`character_${key}_run_${i + 1}`, url);
-            });
-          }
-        });
-      }
-      if (urls.character) this.load.image('character', urls.character);
-      if (urls.land) this.load.image('tile_texture_land', urls.land);
-      if (urls.grass) this.load.image('tile_texture_grass', urls.grass);
-      if (urls.demon_grass) this.load.image('tile_texture_demon_grass', urls.demon_grass);
-      if (urls.ladder) this.load.image('tile_texture_ladder', urls.ladder);
-      if (urls.moving_box) this.load.image('tile_texture_moving_box', urls.moving_box);
-      this.load.image('tile_texture_spinning_block', '/spinning_block.png');
-      if (urls.boombox) this.load.image('tile_texture_boombox', urls.boombox);
-      if (urls.falling_land) this.load.image('tile_texture_falling_land', urls.falling_land);
-      if (urls.explosion) this.load.image('tile_texture_explosion', urls.explosion);
-      if (urls.glue) this.load.image('glue', urls.glue);
-      if (urls.water_flow) {
-        this.load.spritesheet('tile_texture_water_flow', urls.water_flow, {
-          frameWidth: WATER_FRAME_SIZE,
-          frameHeight: WATER_FRAME_SIZE,
-        });
-      }
-      if (urls.water_still) {
-        this.load.spritesheet('tile_texture_water_still', urls.water_still, {
-          frameWidth: WATER_FRAME_SIZE,
-          frameHeight: WATER_FRAME_SIZE,
-        });
-      }
-      if (urls.lava_flow) {
-        this.load.spritesheet('tile_texture_lava_flow', urls.lava_flow, {
-          frameWidth: WATER_FRAME_SIZE,
-          frameHeight: WATER_FRAME_SIZE,
-        });
-      }
-      if (urls.lava_still) {
-        this.load.spritesheet('tile_texture_lava_still', urls.lava_still, {
-          frameWidth: WATER_FRAME_SIZE,
-          frameHeight: WATER_FRAME_SIZE,
-        });
-      }
-      if (urls.laser_single) this.load.image('laser_single', urls.laser_single);
-      if (urls.laser_mid) this.load.image('laser_mid', urls.laser_mid);
-      if (urls.laser_side) this.load.image('laser_side', urls.laser_side);
-    }
-    if (backdropUrls) {
-      Object.entries(backdropUrls).forEach(([id, url]) => {
-        this.load.image(`backdrop_${id}`, url);
-      });
-    }
+    AssetLoader.preloadAssets(this);
   }
 
   create() {
+    // ── Reset state ──────────────────────────────────────────────────────────
     this.isDead = false;
     this.finished = false;
     this.portalCooldown = false;
@@ -254,23 +158,23 @@ export class MainScene extends Phaser.Scene {
     this.portalPositions.clear();
     this.startTime = performance.now();
 
-    // Multiplayer setup
+    // ── Multiplayer setup ────────────────────────────────────────────────────
     this.ghostSprites.clear();
     this.moveEmitCounter = 0;
     this.socket = this.registry.get('socket') as Socket | null ?? null;
     this.partyCode = this.registry.get('partyCode') as string | null ?? null;
 
     if (this.socket && this.partyCode) {
-      this.registerSocketListeners();
+      MultiplayerSystem.registerSocketListeners(this);
     }
 
+    // ── World setup ──────────────────────────────────────────────────────────
     const { width, height } = this.scale;
     const tileData: Tile[] = this.registry.get('tileData') ?? [];
-    const savedCheckpoint: { x: number; y: number } | null = this.registry.get('savedCheckpoint') ?? null;
     const authoredTiles = tileData.length > 0 ? tileData : DEMO_LEVEL_TILES;
-    const activeTiles = this.expandRuntimeFluids(authoredTiles);
-    this.killPlaneY = this.computeKillPlaneY(activeTiles, height);
-    const worldBounds = this.computeWorldBounds(activeTiles, width, height);
+    const activeTiles = TileBuilder.expandRuntimeFluids(authoredTiles);
+    this.killPlaneY = PhysicsSetup.computeKillPlaneY(activeTiles, height);
+    const worldBounds = PhysicsSetup.computeWorldBounds(activeTiles, width, height);
     this.physics.world.setBounds(
       worldBounds.x,
       worldBounds.y,
@@ -282,8 +186,10 @@ export class MainScene extends Phaser.Scene {
       true,
     );
 
-    this.createBackdrop(width, height);
+    // ── Backdrop ─────────────────────────────────────────────────────────────
+    this.backdropState = BackdropRenderer.createBackdrop(this, width, height);
 
+    // ── Physics groups ───────────────────────────────────────────────────────
     this.platforms = this.physics.add.staticGroup();
     this.movingBoxGroup = this.physics.add.group();
     this.hazardGroup = this.physics.add.staticGroup();
@@ -296,156 +202,63 @@ export class MainScene extends Phaser.Scene {
     this.iceGroup = this.physics.add.staticGroup();
     this.fallingLandGroup = this.physics.add.staticGroup();
 
-    // Create reusable water animations once per scene when spritesheets are available.
-    this.createWaterAnimation('tile_texture_water_flow', WATER_FLOW_ANIM_KEY, 10);
-    this.createWaterAnimation('tile_texture_water_still', WATER_STILL_ANIM_KEY, 6);
-    this.createWaterAnimation('tile_texture_lava_flow', LAVA_FLOW_ANIM_KEY, 4);
-    this.createWaterAnimation('tile_texture_lava_still', LAVA_STILL_ANIM_KEY, 3);
+    // ── Fluid animations ─────────────────────────────────────────────────────
+    TileBuilder.createFluidAnimations(this);
 
-    if (tileData.length > 0) {
-      this.buildFromTileData(activeTiles);
-      // If tile data was provided but no flag_start tile was found, show a visible error
-      if (!this.flagStartFound) {
-        this.showNoStartFlagError(width, height);
-        return;
-      }
-    } else {
-      // No tile data supplied — load the built-in demo level
-      this.buildFromTileData(activeTiles);
+    // ── Build tiles ──────────────────────────────────────────────────────────
+    TileBuilder.buildFromTileData(this, activeTiles);
+
+    if (tileData.length > 0 && !this.flagStartFound) {
+      UIOverlay.showNoStartFlagError(this, width, height);
+      return;
     }
 
+    // ── Debug graphics ───────────────────────────────────────────────────────
     this.satDebugGfx = this.add.graphics();
     this.satDebugGfx.setDepth(100);
 
-    this.addBackdropWaterBand(activeTiles);
+    // ── Backdrop water band ──────────────────────────────────────────────────
+    BackdropRenderer.addBackdropWaterBand(this, activeTiles);
 
-    this.initializeMovingBoxUnits();
-    this.initializeSpinningUnits();
+    // ── Moving & spinning units ──────────────────────────────────────────────
+    MovingBoxSystem.initializeMovingBoxUnits(this);
+    SpinningSystem.initializeSpinningUnits(this);
 
-    this.selectedCharacterKey = (this.registry.get('characterKey') as string | null) ?? 'sora';
-    const preferredPlayerTexture = `character_${this.selectedCharacterKey}_still`;
-    const playerTexKey = this.textures.exists(preferredPlayerTexture)
-      ? preferredPlayerTexture
-      : this.textures.exists('character')
-        ? 'character'
-        : 'player';
+    // ── Player ───────────────────────────────────────────────────────────────
+    PlayerController.createPlayer(this);
+    PlayerController.createInput(this);
 
-    if (playerTexKey === 'player' && !this.textures.exists('player')) {
-      const gfx = this.make.graphics({ x: 0, y: 0 });
-      gfx.fillStyle(0x4db8ff, 1);
-      gfx.fillRoundedRect(0, 0, PLAYER_SPRITE_SIZE, PLAYER_SPRITE_SIZE, 8);
-      gfx.fillStyle(0x7ab8f5, 1);
-      gfx.fillCircle(PLAYER_SPRITE_SIZE / 2, 14, 10);
-      gfx.generateTexture('player', PLAYER_SPRITE_SIZE, PLAYER_SPRITE_SIZE);
-      gfx.destroy();
-    }
-
-    if (!this.textures.exists('ghost')) {
-      const gg = this.make.graphics({ x: 0, y: 0 });
-      gg.fillStyle(0xb9add6, 1);
-      gg.fillRoundedRect(0, 0, PLAYER_W_GROUNDED, PLAYER_H, 4);
-      gg.fillStyle(0xd4c8f0, 1);
-      gg.fillCircle(PLAYER_W_GROUNDED / 2, 8, 7);
-      gg.generateTexture('ghost', PLAYER_W_GROUNDED, PLAYER_H);
-      gg.destroy();
-    }
-
-    const startX = savedCheckpoint?.x ?? this.spawnX;
-    const startY = savedCheckpoint?.y ?? this.spawnY;
-    if (savedCheckpoint) {
-      this.checkpointX = savedCheckpoint.x;
-      this.checkpointY = savedCheckpoint.y;
-    }
-
-    this.player = this.physics.add.sprite(
-      startX,
-      startY,
-      playerTexKey,
-    );
-    // Anchor at the bottom center to prevent scaling from affecting ground contact
-    this.player.setOrigin(0.5, 1.0);
-    this.player.setDisplaySize(PLAYER_SPRITE_SIZE, PLAYER_SPRITE_SIZE);
-    this.player.setDepth(CHARACTER_SPRITE_DEPTH);
-
-    // Create climbing animation for current character
-    const urls = this.registry.get('assetUrls') as {
-      characters?: Record<string, { still: string; ladder?: string[]; jump?: string; run?: string[] }>;
-    } | null;
-    const charConfig = urls?.characters?.[this.selectedCharacterKey];
-    if (charConfig?.ladder) {
-      const frames = charConfig.ladder.map((_: string, i: number) => ({
-        key: `character_${this.selectedCharacterKey}_ladder_${i + 1}`,
-      }));
-      this.anims.create({
-        key: CLIMB_ANIM_KEY,
-        frames,
-        frameRate: 6,
-        repeat: -1,
-      });
-    }
-
-    if (charConfig?.run) {
-      const frames = charConfig.run.map((_: string, i: number) => ({
-        key: `character_${this.selectedCharacterKey}_run_${i + 1}`,
-      }));
-      this.anims.create({
-        key: RUN_ANIM_KEY,
-        frames,
-        frameRate: 10,
-        repeat: -1,
-      });
-    }
-    this.player.setBounce(0);
-    const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
-    this.setPlayerColliderWidth(PLAYER_W_GROUNDED);
-    playerBody.setOffset((PLAYER_SPRITE_SIZE - PLAYER_W_GROUNDED) / 2, PLAYER_SPRITE_SIZE - PLAYER_H);
-    playerBody.setMaxVelocityX(PLAYER_SPEED);
-    playerBody.setMaxVelocityY(800); // prevent tunnelling through platform tiles
-
+    // ── Colliders & overlaps ─────────────────────────────────────────────────
     this.physics.add.collider(this.player, this.platforms);
-    this.physics.add.collider(this.player, this.fallingLandGroup, this.onFallingLandContact, undefined, this);
+    this.physics.add.collider(this.player, this.fallingLandGroup,
+      (_p, l) => FallingLandSystem.onFallingLandContact(this, _p, l), undefined, this);
     this.physics.add.collider(
       this.player,
       this.movingBoxGroup,
-      this.onMovingBoxContact,
+      (_p, b) => HazardSystem.onMovingBoxContact(this, _p, b),
       (_p, b) => !(b as Phaser.Physics.Arcade.Image).getData('isSpinningUnitMember'),
-      this
+      this,
     );
-    this.physics.add.collider(this.movingBoxGroup, this.platforms); // needed for blocked.left/right reversal
+    this.physics.add.collider(this.movingBoxGroup, this.platforms);
 
-    this.physics.add.overlap(this.player, this.hazardGroup, this.onHazardOverlap, undefined, this);
-    this.physics.add.overlap(this.player, this.waterGroup, this.onWaterOverlap, undefined, this);
-    this.physics.add.overlap(this.player, this.lavaGroup, this.onLavaOverlap, undefined, this);
-    this.physics.add.overlap(this.player, this.checkpointGroup, this.onCheckpoint, undefined, this);
-    this.physics.add.overlap(this.player, this.finishGroup, this.onFinish, undefined, this);
-    this.physics.add.overlap(this.player, this.portalGroup, this.onPortalOverlap, undefined, this);
+    this.physics.add.overlap(this.player, this.hazardGroup,
+      (_p, h) => HazardSystem.onHazardOverlap(this, _p, h), undefined, this);
+    this.physics.add.overlap(this.player, this.waterGroup,
+      (_p, w) => HazardSystem.onWaterOverlap(this, _p, w), undefined, this);
+    this.physics.add.overlap(this.player, this.lavaGroup,
+      (_p, l) => HazardSystem.onLavaOverlap(this, _p, l), undefined, this);
+    this.physics.add.overlap(this.player, this.checkpointGroup,
+      (_p, c) => UIOverlay.onCheckpoint(this, _p, c), undefined, this);
+    this.physics.add.overlap(this.player, this.finishGroup,
+      () => UIOverlay.onFinish(this), undefined, this);
+    this.physics.add.overlap(this.player, this.portalGroup,
+      (_p, po) => PortalSystem.onPortalOverlap(this, _p, po), undefined, this);
 
-    if (this.socket && this.partyCode) {
-      const localDisplayName = (this.registry.get('localDisplayName') as string | null) ?? 'You';
-      this.playerNameplate = this.add
-        .text(this.player.x, this.player.y - PLAYER_SPRITE_SIZE / 2 - 8, localDisplayName, {
-          fontFamily: 'Tahoma, Arial',
-          fontSize: '10px',
-          color: '#f3f7ff',
-          backgroundColor: '#1b5c2e',
-          padding: { left: 4, right: 4, top: 1, bottom: 1 },
-        })
-        .setOrigin(0.5, 1)
-        .setDepth(CHARACTER_NAMEPLATE_DEPTH);
-    } else {
-      this.playerNameplate = null;
-    }
-
-    this.cursors = this.input.keyboard!.createCursorKeys();
-    this.wasd = {
-      up: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-      left: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-      right: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
-    };
+    // ── Debug key ────────────────────────────────────────────────────────────
     this.debugToggleKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.C);
+    UIOverlay.setColliderDebugVisible(this, true);
 
-    this.setColliderDebugVisible(true);
-
+    // ── Camera ───────────────────────────────────────────────────────────────
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.cameras.main.setDeadzone(width * 0.3, height * 0.3);
     this.cameras.main.setBounds(
@@ -455,2068 +268,56 @@ export class MainScene extends Phaser.Scene {
       worldBounds.height,
     );
 
-    this.add
-      .text(width / 2, 16, 'Arrow keys or WASD  |  Space to jump', {
-        fontFamily: 'Tahoma, Arial',
-        fontSize: '11px',
-        color: '#7ab8f5',
-      })
-      .setOrigin(0.5, 0)
-      .setScrollFactor(0);
-
-    this.timerText = this.add
-      .text(width - 12, 16, '0:00', {
-        fontFamily: 'Tahoma, Arial',
-        fontSize: '20px',
-        color: '#e0e8ff',
-      })
-      .setOrigin(1, 0)
-      .setScrollFactor(0)
-      .setDepth(15);
-  }
-
-  private createWaterAnimation(textureKey: string, animKey: string, frameRate: number) {
-    if (!this.textures.exists(textureKey) || this.anims.exists(animKey)) {
-      return;
-    }
-
-    const texture = this.textures.get(textureKey);
-    const frameKeys = Object.keys(texture.frames).filter((k) => k !== '__BASE');
-    const frameCount = frameKeys.length;
-    if (frameCount <= 0) return;
-
-    this.anims.create({
-      key: animKey,
-      frames: this.anims.generateFrameNumbers(textureKey, { start: 0, end: frameCount - 1 }),
-      frameRate,
-      repeat: -1,
-    });
-  }
-
-  private buildFromTileData(tiles: Tile[]) {
-    const generatedTextures = new Set<string>();
-    const tileMap: Record<string, Tile> = {};
-    tiles.forEach(t => { tileMap[`${t.x},${t.y}`] = t; });
-
-    // First pass: collect portal positions indexed by linkedPortalId (array per ID for bidirectional pairs)
-    for (const tile of tiles) {
-      if (tile.type === 'portal' && tile.linkedPortalId) {
-        const pos = { x: tile.x * TILE + TILE / 2, y: tile.y * TILE + TILE / 2 };
-        const list = this.portalPositions.get(tile.linkedPortalId) ?? [];
-        list.push(pos);
-        this.portalPositions.set(tile.linkedPortalId, list);
-      }
-
-      if (tile.type === 'water' && tile.waterVariant !== 'flow') {
-        const surfaceY = tile.y * TILE;
-        const current = this.waterSurfaceByColumn.get(tile.x);
-        if (current === undefined || surfaceY < current) {
-          this.waterSurfaceByColumn.set(tile.x, surfaceY);
-        }
-      }
-    }
-
-    for (const tile of tiles) {
-      // Gracefully skip unknown tile types with a console warning
-      if (!(tile.type in TILE_META)) {
-        console.warn(`[MainScene] Unknown tile type "${tile.type}" at (${tile.x}, ${tile.y}) — skipped.`);
-        continue;
-      }
-
-      const meta = TILE_META[tile.type];
-      const px = tile.x * TILE;
-      const py = tile.y * TILE;
-
-      // Use a pre-loaded PNG texture for this tile type if available
-      const pngKey = `tile_texture_${tile.type}`;
-      const textureKey = this.textures.exists(pngKey) ? pngKey : `tile_type_${tile.type}`;
-
-      if (textureKey === `tile_type_${tile.type}` && !generatedTextures.has(textureKey)) {
-        const gfx = this.make.graphics({ x: 0, y: 0 });
-        this.drawTileGfx(gfx, tile.type, meta.color, meta.gloss);
-        gfx.generateTexture(textureKey, TILE, TILE);
-        gfx.destroy();
-        generatedTextures.add(textureKey);
-      }
-
-      const cx = px + TILE / 2;
-      const cy = py + TILE / 2;
-
-      switch (tile.type) {
-        case 'land':
-        case 'grass':
-        case 'demon_grass': {
-          const img = this.platforms.create(cx, cy, textureKey) as Phaser.Physics.Arcade.Image;
-          img.setDisplaySize(TILE, TILE);
-          img.setData('gridX', tile.x);
-          img.setData('gridY', tile.y);
-          img.refreshBody();
-          img.setData('sourceGroup', this.platforms);
-          this.staticTilesByCell.set(`${tile.x},${tile.y}`, img);
-          break;
-        }
-
-        case 'ladder': {
-          const ladderSensor = this.ladderGroup.create(cx, cy, textureKey) as Phaser.Physics.Arcade.Image;
-          ladderSensor.setDisplaySize(TILE, TILE);
-          ladderSensor.setData('gridX', tile.x);
-          ladderSensor.setData('gridY', tile.y);
-          ladderSensor.setData('ladder', true);
-          ladderSensor.refreshBody();
-          ladderSensor.body?.setSize(TILE, TILE); // Explicit size for reliable mounting
-          ladderSensor.setData('sourceGroup', this.ladderGroup);
-          this.staticTilesByCell.set(`${tile.x},${tile.y}`, ladderSensor);
-          break;
-        }
-
-        case 'ice': {
-          const img = this.platforms.create(cx, cy, textureKey) as Phaser.Physics.Arcade.Image;
-          img.setDisplaySize(TILE, TILE);
-          img.setData('gridX', tile.x);
-          img.setData('gridY', tile.y);
-          img.refreshBody();
-          img.setData('sourceGroup', this.platforms);
-          const iceSensor = this.iceGroup.create(cx, cy, textureKey) as Phaser.Physics.Arcade.Image;
-          iceSensor.setDisplaySize(TILE, TILE);
-          iceSensor.setAlpha(0);
-          iceSensor.refreshBody();
-          this.staticTilesByCell.set(`${tile.x},${tile.y}`, img);
-          break;
-        }
-
-        case 'falling_land': {
-          const texKey = this.textures.exists('tile_texture_falling_land') ? 'tile_texture_falling_land' : textureKey;
-          const land = this.fallingLandGroup.create(cx, cy, texKey) as Phaser.Physics.Arcade.Image;
-          land.setDisplaySize(TILE, TILE);
-          land.setData('gridX', tile.x);
-          land.setData('gridY', tile.y);
-          land.setData('originalX', cx);
-          land.setData('originalY', cy);
-          land.refreshBody();
-          land.setData('sourceGroup', this.fallingLandGroup);
-          this.staticTilesByCell.set(`${tile.x},${tile.y}`, land);
-          break;
-        }
-
-        case 'moving_box': {
-          const box = this.movingBoxGroup.create(cx, cy, textureKey) as Phaser.Physics.Arcade.Image;
-          box.setDisplaySize(TILE, TILE);
-          box.setImmovable(true);
-          box.setData('gridX', tile.x);
-          box.setData('gridY', tile.y);
-          box.setData('moveDirection', (tile.moveDirection ?? 'right') as MovingDirection);
-          this.movingBoxesByCell.set(`${tile.x},${tile.y}`, box);
-          const boxBody = box.body as Phaser.Physics.Arcade.Body;
-          boxBody.setAllowGravity(false);
-          boxBody.setVelocityX(0);
-          break;
-        }
-
-        case 'spinning_block': {
-          const spinTextureKey = this.textures.exists('tile_texture_spinning_block')
-            ? 'tile_texture_spinning_block'
-            : textureKey;
-          const block = this.add.image(cx, cy, spinTextureKey) as Phaser.Physics.Arcade.Image;
-          this.physics.add.existing(block, true);
-          block.setDisplaySize(TILE * 1.5, TILE * 1.5); // Visual upsize
-          block.setDepth(20); // Make it pop
-          block.setData('gridX', tile.x);
-          block.setData('gridY', tile.y);
-          block.setData('isSpinningCenter', true);
-
-          // Force the collider to stay at the standard tile size
-          const body = block.body as Phaser.Physics.Arcade.StaticBody;
-          body.setSize(TILE, TILE);
-          body.updateFromGameObject();
-
-          this.staticTilesByCell.set(`${tile.x},${tile.y}`, block);
-          break;
-        }
-
-        case 'lava': {
-          const px = tile.x * TILE;
-          const py = tile.y * TILE;
-          const isFlow = tile.waterVariant === 'flow';
-
-          const visibleLava = this.add
-            .sprite(px, py, 'tile_texture_lava_flow')
-            .setOrigin(0, 0)
-            .setDepth(WATER_TEXTURE_DEPTH)
-            .setDisplaySize(TILE, TILE)
-            .setAlpha(1);
-
-          if (isFlow && this.anims.exists(LAVA_FLOW_ANIM_KEY)) {
-            visibleLava.play(LAVA_FLOW_ANIM_KEY);
-          }
-
-          const lava = this.lavaGroup.create(cx, cy, textureKey) as Phaser.Physics.Arcade.Image;
-          lava.setDisplaySize(TILE, TILE);
-          lava.setData('gridX', tile.x);
-          lava.setAlpha(0);
-          lava.refreshBody();
-          break;
-        }
-
-        case 'laser': {
-          const nx = tile.x;
-          const ny = tile.y;
-
-          // Omni-sniff: Check all 4 directions for laser neighbors
-          const hasLeft  = tileMap[`${nx - 1},${ny}`]?.type === 'laser';
-          const hasRight = tileMap[`${nx + 1},${ny}`]?.type === 'laser';
-          const hasUp    = tileMap[`${nx},${ny - 1}`]?.type === 'laser';
-          const hasDown  = tileMap[`${nx},${ny + 1}`]?.type === 'laser';
-
-          // Infer dominant axis (autodetect if metadata is missing or incorrect)
-          let inferredDir = (tile.direction || 'h') as 'h' | 'v';
-          if ((hasUp || hasDown) && !hasLeft && !hasRight) {
-            inferredDir = 'v';
-          } else if ((hasLeft || hasRight) && !hasUp && !hasDown) {
-            inferredDir = 'h';
-          }
-
-          // Segments detection based on our inferred axis
-          const hasPrev = inferredDir === 'h' ? hasLeft : hasUp;
-          const hasNext = inferredDir === 'h' ? hasRight : hasDown;
-          
-          // Selection logic
-          let laserKey = 'laser_single';
-          let laserAngle = 0;
-
-          if (hasPrev && hasNext) {
-            laserKey = 'laser_mid';
-          } else if (!hasPrev && hasNext) {
-            laserKey = 'laser_side';
-            laserAngle = 0;
-          } else if (hasPrev && !hasNext) {
-            laserKey = 'laser_side';
-            laserAngle = 180;
-          }
-
-          // Apply global direction alignment (textures are horizontal by default)
-          if (inferredDir === 'v') {
-            laserAngle += 90;
-          }
-
-          const visibleHazard = this.add
-            .image(cx, cy, laserKey)
-            .setRotation(Phaser.Math.DegToRad(laserAngle))
-            .setDisplaySize(TILE, TILE)
-            .setOrigin(0.5, 0.5)
-            .setDepth(HAZARD_TEXTURE_DEPTH);
-
-          const haz = this.hazardGroup.create(cx, cy, textureKey) as Phaser.Physics.Arcade.Image;
-          haz.setDisplaySize(TILE, TILE);
-          haz.setData('hazardType', tile.type);
-          haz.setData('tileX', tile.x);
-          haz.setData('tileY', tile.y);
-          haz.setData('visibleHazard', visibleHazard);
-          haz.setAlpha(0);
-          haz.refreshBody();
-
-          // Shrink collider to 50% and center it AFTER refreshBody
-          const body = haz.body as Phaser.Physics.Arcade.StaticBody;
-          body.setSize(TILE / 2, TILE / 2);
-          body.setOffset(TILE / 4, TILE / 4);
-          break;
-        }
-
-        case 'boombox': {
-          this.boomboxSpawnCells.add(`${tile.x},${tile.y}`);
-          const haz = this.spawnBoomboxHazard(tile.x, tile.y);
-          if (haz) {
-            haz.sensor.setData('gridX', tile.x);
-            haz.sensor.setData('gridY', tile.y);
-            haz.sensor.setData('sourceGroup', this.hazardGroup);
-            haz.sensor.setData('visualMirror', haz.visible);
-            this.staticTilesByCell.set(`${tile.x},${tile.y}`, haz.sensor);
-          }
-          break;
-        }
-
-        case 'water': {
-          const variant = tile.waterVariant === 'flow' ? 'flow' : 'still';
-          const waterTextureKey = variant === 'flow'
-            ? 'tile_texture_water_flow'
-            : 'tile_texture_water_still';
-          const waterAnimKey = variant === 'flow' ? WATER_FLOW_ANIM_KEY : WATER_STILL_ANIM_KEY;
-          const lethalWater = variant === 'still';
-
-          this.add
-            .rectangle(px + TILE / 2, py + TILE / 2, TILE, TILE, WATER_OVERLAY_FILL, 0.7)
-            .setDepth(WATER_OVERLAY_DEPTH);
-
-          const visibleWater = this.add
-            .sprite(px, py, waterTextureKey)
-            .setOrigin(0, 0)
-            .setDepth(WATER_TEXTURE_DEPTH)
-            .setDisplaySize(TILE, TILE)
-            .setAlpha(WATER_TEXTURE_ALPHA);
-
-          if (this.anims.exists(waterAnimKey)) {
-            visibleWater.play(waterAnimKey);
-          }
-
-          const water = this.waterGroup.create(cx, cy, textureKey) as Phaser.Physics.Arcade.Image;
-          water.setDisplaySize(TILE, TILE);
-          water.setData('gridX', tile.x);
-          water.setData('lethal', lethalWater);
-          water.setAlpha(0);
-          water.refreshBody();
-          break;
-        }
-
-        case 'portal': {
-          this.add.image(px, py, textureKey).setOrigin(0, 0);
-          const portal = this.portalGroup.create(cx, cy, textureKey) as Phaser.Physics.Arcade.Image;
-          portal.setDisplaySize(TILE, TILE);
-          portal.setData('linkedPortalId', tile.linkedPortalId ?? '');
-          portal.setData('portalX', cx);
-          portal.setData('portalY', cy);
-          portal.setAlpha(0);
-          portal.refreshBody();
-          break;
-        }
-
-        case 'flag_checkpoint': {
-          this.add.image(px, py, textureKey).setOrigin(0, 0);
-          this.add.text(cx, cy, 'C', {
-            fontFamily: 'Tahoma, Arial', fontSize: '14px', fontStyle: 'bold', color: '#fff',
-          }).setOrigin(0.5, 0.5);
-          const cp = this.checkpointGroup.create(cx, cy, textureKey) as Phaser.Physics.Arcade.Image;
-          cp.setDisplaySize(TILE, TILE);
-          cp.setData('spawnX', cx);
-          cp.setData('spawnY', cy - TILE / 2 - PLAYER_H / 2);
-          cp.setAlpha(0);
-          cp.refreshBody();
-          break;
-        }
-
-        case 'flag_finish': {
-          this.add.image(px, py, textureKey).setOrigin(0, 0);
-          this.add.text(cx, cy, 'F', {
-            fontFamily: 'Tahoma, Arial', fontSize: '14px', fontStyle: 'bold', color: '#fff',
-          }).setOrigin(0.5, 0.5);
-          const fin = this.finishGroup.create(cx, cy, textureKey) as Phaser.Physics.Arcade.Image;
-          fin.setDisplaySize(TILE, TILE);
-          fin.setAlpha(0);
-          fin.refreshBody();
-          break;
-        }
-
-        case 'flag_start': {
-          this.flagStartFound = true;
-          this.add.image(px, py, textureKey).setOrigin(0, 0);
-          this.add.text(cx, cy, 'S', {
-            fontFamily: 'Tahoma, Arial', fontSize: '14px', fontStyle: 'bold', color: '#fff',
-          }).setOrigin(0.5, 0.5);
-          this.spawnX = cx;
-          this.spawnY = py - PLAYER_H / 2;
-          break;
-        }
-
-        default:
-          break;
-      }
-    }
-  }
-
-  private createBackdrop(width: number, height: number) {
-    this.repeatingBackdrop = null;
-    this.repeatingBackdropTextureKey = null;
-    const backdropId = normalizeBackdropId(this.registry.get('backdropId') as string | null | undefined);
-
-    if (backdropId !== DEFAULT_BACKDROP_ID && this.textures.exists(`backdrop_${backdropId}`)) {
-      const baseKey = `backdrop_${backdropId}`;
-      const mirroredKey = this.getOrCreateMirroredBackdropTexture(baseKey);
-      this.repeatingBackdropTextureKey = mirroredKey;
-      this.repeatingBackdrop = this.add
-        .tileSprite(width / 2, height / 2, width, height, mirroredKey)
-        .setOrigin(0.5, 0.5)
-        .setScrollFactor(0)
-        .setDepth(-10);
-      return;
-    }
-
-    const worldW = Math.max(width * 4, 2000);
-    const worldH = Math.max(height * 2, 1000);
-    const bg = this.add.graphics();
-    bg.fillGradientStyle(0x0a1628, 0x0a1628, 0x0d1e3d, 0x0d1e3d, 1);
-    bg.fillRect(0, 0, worldW, worldH);
-    bg.setDepth(-10);
-  }
-
-  private getOrCreateMirroredBackdropTexture(baseTextureKey: string): string {
-    const mirroredKey = `${baseTextureKey}_mirrored_pair`;
-    if (this.textures.exists(mirroredKey)) {
-      return mirroredKey;
-    }
-
-    const baseTexture = this.textures.get(baseTextureKey);
-    const src = baseTexture.getSourceImage() as
-      | HTMLImageElement
-      | HTMLCanvasElement
-      | OffscreenCanvas
-      | null;
-
-    const srcW = src ? (src as { width: number }).width : 0;
-    const srcH = src ? (src as { height: number }).height : 0;
-
-    if (!src || srcW <= 0 || srcH <= 0) {
-      return baseTextureKey;
-    }
-
-    const canvasTexture = this.textures.createCanvas(mirroredKey, srcW * 2, srcH);
-    if (!canvasTexture) {
-      return baseTextureKey;
-    }
-    const ctx = canvasTexture.context;
-
-    ctx.clearRect(0, 0, srcW * 2, srcH);
-    ctx.drawImage(src as CanvasImageSource, 0, 0, srcW, srcH);
-
-    ctx.save();
-    ctx.translate(srcW * 2, 0);
-    ctx.scale(-1, 1);
-    ctx.drawImage(src as CanvasImageSource, 0, 0, srcW, srcH);
-    ctx.restore();
-
-    canvasTexture.refresh();
-    return mirroredKey;
-  }
-
-  private showNoStartFlagError(width: number, height: number) {
-    // Halt the update loop so it never touches uninitialised fields
-    this.finished = true;
-    this.add
-      .rectangle(0, 0, width, height, 0x1a0000, 0.85)
-      .setOrigin(0, 0)
-      .setScrollFactor(0)
-      .setDepth(20);
-    this.add
-      .text(width / 2, height / 2 - 24, 'Level Error', {
-        fontFamily: 'Tahoma, Arial', fontSize: '28px', fontStyle: 'bold', color: '#ff4444',
-      })
-      .setOrigin(0.5, 0.5)
-      .setScrollFactor(0)
-      .setDepth(21);
-    this.add
-      .text(width / 2, height / 2 + 16, 'This level has no Start Flag.\nPlease edit the level and add a flag_start tile.', {
-        fontFamily: 'Tahoma, Arial', fontSize: '14px', color: '#ffaaaa', align: 'center',
-      })
-      .setOrigin(0.5, 0)
-      .setScrollFactor(0)
-      .setDepth(21);
-  }
-
-  private drawTileGfx(
-    gfx: Phaser.GameObjects.Graphics,
-    type: string,
-    color: string,
-    gloss: string,
-  ) {
-    const c = Phaser.Display.Color.HexStringToColor(color).color;
-    const g = Phaser.Display.Color.HexStringToColor(gloss).color;
-
-    gfx.fillStyle(c, 1);
-    gfx.fillRect(0, 0, TILE, TILE);
-    gfx.fillStyle(g, 0.35);
-    gfx.fillRect(0, 0, TILE, 4);
-    gfx.fillStyle(0x000000, 0.25);
-    gfx.fillRect(0, TILE - 3, TILE, 3);
-    gfx.lineStyle(1, 0x000000, 0.3);
-    gfx.strokeRect(0, 0, TILE, TILE);
-
-    if (type === 'water' || type === 'lava') {
-      gfx.lineStyle(1, 0xffffff, 0.12);
-      for (let i = -TILE; i < TILE * 2; i += 8) {
-        gfx.lineBetween(i, 0, i + TILE, TILE);
-      }
-    }
-    if (type === 'portal') {
-      gfx.lineStyle(2, 0xffffff, 0.5);
-      gfx.strokeCircle(TILE / 2, TILE / 2, TILE / 2 - 4);
-    }
-    if (type === 'laser') {
-      gfx.lineStyle(2, 0xff4466, 0.8);
-      gfx.lineBetween(0, TILE / 2, TILE, TILE / 2);
-    }
+    // ── HUD ──────────────────────────────────────────────────────────────────
+    UIOverlay.createHUD(this, width);
+    UIOverlay.createTimer(this, width);
   }
 
   update() {
-    if (this.repeatingBackdrop) {
-      const cam = this.cameras.main;
-      this.repeatingBackdrop.tilePositionX = cam.scrollX * 0.2;
-      this.repeatingBackdrop.tilePositionY = cam.scrollY * 0.05;
-    }
+    BackdropRenderer.updateBackdropParallax(this.backdropState, this.cameras.main);
+    UIOverlay.updateColliderDebugToggle(this);
+    UIOverlay.updateTimer(this);
 
-    this.updateColliderDebugToggle();
+    MovingBoxSystem.updateMovingBoxUnits(this);
+    SpinningSystem.updateSpinningUnits(this);
+    SpinningSystem.handleSpinningCollision(this);
 
-    // Update timer every frame while the level is in progress (runs even during death)
-    if (!this.finished && this.timerText) {
-      const elapsed = performance.now() - this.startTime;
-      const totalSec = Math.floor(elapsed / 1000);
-      const min = Math.floor(totalSec / 60);
-      const sec = totalSec % 60;
-      this.timerText.setText(`${min}:${sec.toString().padStart(2, '0')}`);
-    }
-
-    this.updateMovingBoxUnits();
-    this.updateSpinningUnits();
-    this.handleSpinningCollision();
+    // Ghost interpolation runs every frame so remote players move smoothly
+    // even while the local player is dead or has finished.
+    MultiplayerSystem.updateGhostInterpolation(this);
 
     if (this.isDead || this.finished) return;
 
-    // Emit position to party at ~20 fps (every 3 frames at 60fps)
-    if (this.socket && this.partyCode) {
-      this.moveEmitCounter++;
-      if (this.moveEmitCounter >= 3) {
-        this.moveEmitCounter = 0;
-        const body = this.player.body as Phaser.Physics.Arcade.Body;
-        const onGround = body.blocked.down;
-        let moveState = 'idle';
-        if (this.isDead) {
-          moveState = 'dead';
-        } else if (!onGround) {
-          moveState = 'jumping';
-        } else if (Math.abs(body.velocity.x) > 10) {
-          moveState = 'running';
-        }
-        this.socket.emit('player:move', {
-          code: this.partyCode,
-          x: Math.round(this.player.x),
-          y: Math.round(this.player.y),
-          state: moveState,
-        });
-      }
-    }
-    const body = this.player.body as Phaser.Physics.Arcade.Body;
-    const onGround = body.blocked.down;
-
-    this.isOnIce = false;
-    if (onGround) {
-      this.iceGroup.getChildren().forEach((child) => {
-        const iceImg = child as Phaser.Physics.Arcade.Image;
-        const iceBody = iceImg.body as Phaser.Physics.Arcade.StaticBody;
-        const playerLeft = body.x;
-        const playerRight = body.x + body.width;
-        const iceLeft = iceBody.x;
-        const iceRight = iceBody.x + iceBody.width;
-        const iceTop = iceBody.y;
-        const playerBottom = body.y + body.height;
-        if (
-          playerRight > iceLeft &&
-          playerLeft < iceRight &&
-          Math.abs(playerBottom - iceTop) < 4
-        ) {
-          this.isOnIce = true;
-        }
-      });
-    }
-
-    this.onLadder = false;
-    this.climbingUnitVelocity = { x: 0, y: 0 };
-
-    const checkLadderOverlap = (child: Phaser.GameObjects.GameObject) => {
-      const ladderImg = child as Phaser.Physics.Arcade.Image;
-      const lb = ladderImg.body as Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody;
-      if (!lb) return false;
-
-      const playerCenterX = body.x + body.width / 2;
-      const isOverlapping = (
-        playerCenterX > lb.x &&
-        playerCenterX < lb.right &&
-        body.y + body.height > lb.y &&
-        body.y < lb.bottom
-      );
-
-      if (isOverlapping) {
-        this.onLadder = true;
-        if (lb instanceof Phaser.Physics.Arcade.Body) {
-          this.climbingUnitVelocity = { x: lb.velocity.x, y: lb.velocity.y };
-        }
-        return true;
-      }
-      return false;
-    };
-
-    this.ladderGroup.getChildren().some(checkLadderOverlap);
-
-    if (!this.onLadder) {
-      this.movingBoxGroup.getChildren().some((child) => {
-        const box = child as Phaser.Physics.Arcade.Image;
-        if (box.getData('ladder')) {
-          return checkLadderOverlap(box);
-        }
-        return false;
-      });
-    }
-
-    // Keep normal width on ground/ladder and narrow only while truly airborne.
-    // Expand to grounded width only when there is clear horizontal space.
-    const shouldBeAirborneWidth = !onGround && !this.onLadder;
-    if (shouldBeAirborneWidth) {
-      this.setPlayerColliderWidth(PLAYER_W_AIRBORNE);
-    } else if (this.currentPlayerColliderW !== PLAYER_W_GROUNDED && this.canUseGroundedColliderWidth()) {
-      this.setPlayerColliderWidth(PLAYER_W_GROUNDED);
-    }
-
-
-
-    const goLeft = this.cursors.left.isDown || this.wasd.left.isDown;
-    const goRight = this.cursors.right.isDown || this.wasd.right.isDown;
-    const goUp = this.cursors.up.isDown || this.wasd.up.isDown;
-    const jump = Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
-      Phaser.Input.Keyboard.JustDown(this.cursors.space) ||
-      Phaser.Input.Keyboard.JustDown(this.wasd.up);
-
-    const accel = this.isOnIce ? ICE_ACCEL : PLAYER_ACCEL;
-    const drag = this.isOnIce ? ICE_DRAG : PLAYER_DRAG;
-
-    if (this.onLadder) {
-      body.setAllowGravity(false);
-      body.setAccelerationX(0);
-      body.setDragX(drag);
-
-      if (goUp) {
-        body.setVelocityY(-180 + this.climbingUnitVelocity.y);
-      } else if (this.cursors.down.isDown) {
-        body.setVelocityY(180 + this.climbingUnitVelocity.y);
-      } else {
-        body.setVelocityY(this.climbingUnitVelocity.y);
-      }
-
-      if (this.anims.exists(CLIMB_ANIM_KEY)) {
-        let ladderWidth = LADDER_SPRITE_SIZE;
-        let ladderHeight = LADDER_SPRITE_SIZE;
-        if (this.selectedCharacterKey === 'sora') {
-          ladderWidth = 70;
-          ladderHeight = 70;
-        }
-        this.player.setDisplaySize(ladderWidth, ladderHeight);
-        if (body.velocity.y !== 0) {
-          this.player.play(CLIMB_ANIM_KEY, true);
-        } else {
-          // Ensure we are in a ladder frame even if not moving
-          if (!this.player.anims.isPlaying || this.player.anims.currentAnim?.key !== CLIMB_ANIM_KEY) {
-            this.player.play(CLIMB_ANIM_KEY);
-          }
-          this.player.stop();
-        }
-      }
-
-      if (goLeft) {
-        body.setVelocityX(-PLAYER_SPEED + this.climbingUnitVelocity.x);
-      } else if (goRight) {
-        body.setVelocityX(PLAYER_SPEED + this.climbingUnitVelocity.x);
-      } else {
-        body.setVelocityX(this.climbingUnitVelocity.x);
-      }
-    } else {
-      body.setAllowGravity(true);
-
-      if (goLeft) {
-        body.setAccelerationX(-accel);
-      } else if (goRight) {
-        body.setAccelerationX(accel);
-      } else {
-        body.setAccelerationX(0);
-        body.setDragX(drag);
-      }
-
-      if (Math.abs(body.velocity.x) > PLAYER_SPEED) {
-        body.setVelocityX(Math.sign(body.velocity.x) * PLAYER_SPEED);
-      }
-
-      if (jump && onGround) {
-        body.setVelocityY(JUMP_VELOCITY);
-      }
-    }
-
-    if (goLeft) this.player.setFlipX(false);
-    if (goRight) this.player.setFlipX(true);
-
-    if (!this.onLadder) {
-      if (this.player.anims.isPlaying && this.player.anims.currentAnim?.key === CLIMB_ANIM_KEY) {
-        this.player.stop();
-      }
-
-      let targetTex = `character_${this.selectedCharacterKey}_still`;
-      let playingRun = false;
-      let displaySize = PLAYER_SPRITE_SIZE;
-
-      if (!onGround) {
-        const jumpTex = `character_${this.selectedCharacterKey}_jump`;
-        if (this.textures.exists(jumpTex)) {
-          targetTex = jumpTex;
-          if (this.selectedCharacterKey === 'sora') {
-            displaySize = 66;
-          }
-        }
-      } else if (Math.abs(body.velocity.x) > 10) {
-        if (this.anims.exists(RUN_ANIM_KEY)) {
-          this.player.play(RUN_ANIM_KEY, true);
-          playingRun = true;
-        }
-      }
-
-      if (!playingRun) {
-        if (this.player.anims.isPlaying && this.player.anims.currentAnim?.key === RUN_ANIM_KEY) {
-          this.player.stop();
-        }
-        if (this.player.texture.key !== targetTex) {
-          this.player.setTexture(targetTex);
-        }
-      }
-
-      this.player.setDisplaySize(displaySize, displaySize);
-
-      // Since we changed the scale of the sprite, we must manually re-anchor the collider offset
-      // Phaser's Arcade Physics scales the offset by the sprite's scale automatically, 
-      // but we need the collider feet to stay perfectly aligned with the sprite's bottom origin.
-      const xOff = (PLAYER_SPRITE_SIZE - this.currentPlayerColliderW) / 2;
-      const yOff = PLAYER_SPRITE_SIZE - PLAYER_H;
-      body.setOffset(xOff, yOff);
-    }
-
-    if (this.player.y > this.killPlaneY) {
-      this.killPlayer();
-    }
-
-    if (this.playerNameplate) {
-      this.playerNameplate.setPosition(
-        this.player.x,
-        this.player.y - PLAYER_SPRITE_SIZE - 4,
-      );
-    }
-  }
-
-  private computeKillPlaneY(tiles: Tile[], fallbackHeight: number): number {
-    if (tiles.length === 0) return fallbackHeight + 200;
-    let maxY = 0;
-    for (const tile of tiles) {
-      if (tile.y > maxY) maxY = tile.y;
-    }
-    return (maxY + 1) * TILE + 240;
-  }
-
-  private computeWorldBounds(tiles: Tile[], fallbackWidth: number, fallbackHeight: number) {
-    if (tiles.length === 0) {
-      return { x: 0, y: 0, width: fallbackWidth, height: fallbackHeight };
-    }
-
-    let minX = 0;
-    let minY = 0;
-    let maxX = 0;
-    let maxY = 0;
-
-    for (const tile of tiles) {
-      if (tile.x < minX) minX = tile.x;
-      if (tile.y < minY) minY = tile.y;
-      if (tile.x > maxX) maxX = tile.x;
-      if (tile.y > maxY) maxY = tile.y;
-    }
-
-    const paddingTiles = 1;
-    const x = (minX - paddingTiles) * TILE;
-    const y = (minY - paddingTiles) * TILE;
-    const width = (maxX - minX + 1 + paddingTiles * 2) * TILE;
-    const height = (maxY - minY + 1 + paddingTiles * 2) * TILE;
-
-    return {
-      x,
-      y,
-      width: Math.max(width, fallbackWidth),
-      height: Math.max(height, fallbackHeight),
-    };
-  }
-
-  private addBackdropWaterBand(tiles: Tile[]) {
-    const backdropId = normalizeBackdropId(this.registry.get('backdropId') as string | null | undefined);
-    if (!WATER_BACKDROP_IDS.has(backdropId)) return;
-    if (tiles.length === 0) return;
-
-    let maxY = 0;
-    for (const tile of tiles) {
-      if (tile.y > maxY) maxY = tile.y;
-    }
-
-    const world = this.physics.world.bounds;
-    const sidePadding = TILE * 24;
-    const waterTop = (maxY + 1) * TILE;
-    const waterBottom = world.bottom + TILE * 24;
-    const waterHeight = Math.max(TILE * 4, waterBottom - waterTop);
-    const waterX = world.x - sidePadding;
-    const waterW = world.width + sidePadding * 2;
-
-    if (this.textures.exists('tile_texture_water_still')) {
-      const cols = Math.ceil(waterW / TILE);
-      const rows = Math.ceil(waterHeight / TILE);
-      const startX = waterX + TILE / 2;
-      const startY = waterTop + TILE / 2;
-
-      this.add
-        .rectangle(waterX + waterW / 2, waterTop + waterHeight / 2, waterW, waterHeight, WATER_OVERLAY_FILL, 0.7)
-        .setDepth(WATER_OVERLAY_DEPTH);
-
-      for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-          const sprite = this.add
-            .sprite(startX + col * TILE, startY + row * TILE, 'tile_texture_water_still')
-            .setDisplaySize(TILE, TILE)
-            .setAlpha(WATER_TEXTURE_ALPHA)
-            .setDepth(WATER_TEXTURE_DEPTH);
-
-          if (this.anims.exists(WATER_STILL_ANIM_KEY)) {
-            sprite.play(WATER_STILL_ANIM_KEY);
-          }
-        }
-      }
-      return;
-    }
-
-    this.add
-      .rectangle(waterX + waterW / 2, waterTop + waterHeight / 2, waterW, waterHeight, 0x2f6fb3, 0.75)
-      .setDepth(-7);
-
-    this.add
-      .rectangle(waterX + waterW / 2, waterTop + 5, waterW, 10, 0x6aa4de, 0.5)
-      .setDepth(-6);
-  }
-
-  private setPlayerColliderWidth(w: number) {
-    if (this.currentPlayerColliderW === w) return;
-    const body = this.player.body as Phaser.Physics.Arcade.Body;
-    // When origin is (0.5, 1.0), the body x-offset must be adjusted to center it horizontally,
-    // and the y-offset must be set to keep it at the botom of the sprite box.
-    const xOffset = (PLAYER_SPRITE_SIZE - w) / 2;
-    const yOffset = PLAYER_SPRITE_SIZE - PLAYER_H;
-    body.setSize(w, PLAYER_H, false);
-    body.setOffset(xOffset, yOffset);
-    this.currentPlayerColliderW = w;
-  }
-
-  private canUseGroundedColliderWidth(): boolean {
-    const body = this.player.body as Phaser.Physics.Arcade.Body;
-    const left = this.player.x - PLAYER_W_GROUNDED / 2;
-    const right = this.player.x + PLAYER_W_GROUNDED / 2;
-    const top = body.y;
-    const bottom = body.y + body.height;
-
-    const intersects = (otherX: number, otherY: number, otherW: number, otherH: number) => {
-      const overlapX = Math.min(right, otherX + otherW) - Math.max(left, otherX);
-      const overlapY = Math.min(bottom, otherY + otherH) - Math.max(top, otherY);
-      // Ignore edge-touching contacts and tiny float jitter.
-      return overlapX > 1 && overlapY > 1;
-    };
-
-    const collidesStaticGroup = (group: Phaser.Physics.Arcade.StaticGroup) => {
-      for (const child of group.getChildren()) {
-        const img = child as Phaser.Physics.Arcade.Image;
-        const staticBody = img.body as Phaser.Physics.Arcade.StaticBody | undefined;
-        if (!img.active || !img.visible || !staticBody || staticBody.enable === false) continue;
-        if (intersects(staticBody.x, staticBody.y, staticBody.width, staticBody.height)) {
-          return true;
-        }
-      }
-      return false;
-    };
-
-    const collidesDynamicGroup = (group: Phaser.Physics.Arcade.Group) => {
-      for (const child of group.getChildren()) {
-        const img = child as Phaser.Physics.Arcade.Image;
-        const dynBody = img.body as Phaser.Physics.Arcade.Body | undefined;
-        if (!img.active || !img.visible || !dynBody || !dynBody.enable) continue;
-        if (intersects(dynBody.x, dynBody.y, dynBody.width, dynBody.height)) {
-          return true;
-        }
-      }
-      return false;
-    };
-
-    return !collidesStaticGroup(this.platforms)
-      && !collidesStaticGroup(this.fallingLandGroup)
-      && !collidesDynamicGroup(this.movingBoxGroup);
-  }
-
-  private killPlayer() {
-    if (this.isDead || this.finished) return;
-    this.isDead = true;
-
-    this.player.setTint(0xff4444);
-    this.player.setVelocity(0, 0);
-    const body = this.player.body as Phaser.Physics.Arcade.Body;
-    body.setAccelerationX(0);
-    body.setMaxVelocityX(0);
-    body.setAllowGravity(false);
-
-    this.time.delayedCall(800, () => {
-      this.respawnPlayer();
-    });
-  }
-
-  private respawnPlayer() {
-    this.restoreRespawnHazards();
-    this.restoreAllFallingLand();
-    this.isDead = false;
-    const rx = this.checkpointX ?? this.spawnX;
-    const ry = this.checkpointY ?? this.spawnY;
-    this.player.clearTint();
-    this.player.setPosition(rx, ry);
-    const body = this.player.body as Phaser.Physics.Arcade.Body;
-    body.setAllowGravity(true);
-    body.setAccelerationX(0);
-    body.setMaxVelocityX(PLAYER_SPEED);
-    this.player.setVelocity(0, 0);
-  }
-
-  private onCheckpoint(
-    _player: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
-    checkpoint: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
-  ) {
-    const cp = checkpoint as Phaser.Physics.Arcade.Image;
-    const cx = cp.getData('spawnX') as number;
-    const cy = cp.getData('spawnY') as number;
-
-    if (cx === this.checkpointX && cy === this.checkpointY) return;
-
-    this.checkpointX = cx;
-    this.checkpointY = cy;
-
-    this.tweens.add({
-      targets: cp,
-      alpha: { from: 0.6, to: 0 },
-      duration: 300,
-      ease: 'Linear',
-    });
-
-    const onCheckpointCb = this.registry.get('onCheckpoint') as
-      | ((x: number, y: number) => void)
-      | undefined;
-    if (onCheckpointCb) onCheckpointCb(cx, cy);
-  }
-
-  private onWaterOverlap(
-    playerObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
-    waterObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
-  ) {
-    if (this.isDead || this.finished) return;
-
-    const player = playerObj as Phaser.Physics.Arcade.Sprite;
-    const body = player.body as Phaser.Physics.Arcade.Body;
-    const playerBottom = body.y + body.height;
-
-    const water = waterObj as Phaser.Physics.Arcade.Image;
-    const lethal = water.getData('lethal') as boolean | undefined;
-    if (!lethal) return;
-    const gridX = water.getData('gridX') as number | undefined;
-    const surfaceY = gridX !== undefined
-      ? this.waterSurfaceByColumn.get(gridX)
-      : undefined;
-
-    // Kill only after the player sinks at least two full tile blocks below the surface.
-    const depthPx = playerBottom - (surfaceY ?? water.y - TILE / 2);
-    if (depthPx >= TILE * 2) {
-      this.killPlayer();
-    }
-  }
-
-  private onLavaOverlap(
-    _playerObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
-    _lavaObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
-  ) {
-    if (this.isDead || this.finished) return;
-    this.killPlayer();
-  }
-
-  private onHazardOverlap(
-    _playerObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
-    hazardObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
-  ) {
-    if (this.isDead || this.finished) return;
-
-    const hazard = hazardObj as Phaser.Physics.Arcade.Image;
-    const hazardType = (hazard.getData('hazardType') as string | undefined) ?? '';
-
-    if (hazardType === 'boombox') {
-      const explosionTexture = this.textures.exists('tile_texture_explosion')
-        ? 'tile_texture_explosion'
-        : null;
-      const tileX = (hazard.getData('tileX') as number | undefined) ?? Math.round((hazard.x - TILE / 2) / TILE);
-      const tileY = (hazard.getData('tileY') as number | undefined) ?? Math.round((hazard.y - TILE / 2) / TILE);
-      const explosionX = tileX * TILE + TILE / 2;
-      const explosionY = tileY * TILE + TILE / 2;
-
-      const cellKey = `${tileX},${tileY}`;
-      const tracked = this.boomboxHazardsByCell.get(cellKey);
-      if (tracked) {
-        tracked.visible.destroy();
-        tracked.sensor.destroy();
-        this.boomboxHazardsByCell.delete(cellKey);
-      } else {
-        const visibleHazard = hazard.getData('visibleHazard') as Phaser.GameObjects.Image | undefined;
-        visibleHazard?.destroy();
-        hazard.destroy();
-      }
-
-      if (explosionTexture) {
-        const explosion = this.add
-          .image(explosionX, explosionY, explosionTexture)
-          .setDepth(25)
-          .setDisplaySize(TILE * 1.3, TILE * 1.3)
-          .setAlpha(1);
-        this.tweens.add({
-          targets: explosion,
-          scaleX: 1.8,
-          scaleY: 1.8,
-          alpha: 0,
-          duration: 320,
-          ease: 'Cubic.Out',
-          onComplete: () => explosion.destroy(),
-        });
-      }
-    }
-
-    this.killPlayer();
-  }
-
-  private spawnBoomboxHazard(tileX: number, tileY: number) {
-    const cellKey = `${tileX},${tileY}`;
-    if (this.boomboxHazardsByCell.has(cellKey)) return null;
-
-    const textureKey = this.textures.exists('tile_texture_boombox')
-      ? 'tile_texture_boombox'
-      : 'tile_type_boombox';
-
-    // Check if this was a glued hazard and reposition it to its unit
-    const blueprint = this.gluedHazardBlueprints.get(cellKey);
-    let px = tileX * TILE;
-    let py = tileY * TILE;
-
-    if (blueprint) {
-      const unit = this.movingBoxUnits.get(blueprint.unitId);
-      const ref = unit?.find(b => b.active);
-      if (ref) {
-        if (blueprint.isSpinning) {
-          // Calculate current position based on spinning unit center
-          const spinningUnit = this.spinningUnits.get(blueprint.unitId);
-          if (spinningUnit) {
-            const cx = spinningUnit.center.x;
-            const cy = spinningUnit.center.y;
-            const currentAngle = spinningUnit.angle + (blueprint.initAngle ?? 0);
-            px = cx + (blueprint.radius ?? 0) * Math.cos(currentAngle) - TILE / 2;
-            py = cy + (blueprint.radius ?? 0) * Math.sin(currentAngle) - TILE / 2;
-          }
-        } else {
-          px = ref.x + blueprint.relX - TILE / 2;
-          py = ref.y + blueprint.relY - TILE / 2;
-        }
-      }
-    }
-
-    const px_centered = px + TILE / 2;
-    const py_centered = py + TILE / 2;
-
-    const sensor = this.physics.add.image(px_centered, py_centered, textureKey);
-    const visibleHazard = this.add.image(px_centered, py_centered, textureKey).setOrigin(0.5, 0.5);
-    visibleHazard.setDisplaySize(TILE, TILE);
-
-    sensor.setDisplaySize(TILE, TILE);
-    sensor.setData('hazardType', 'boombox');
-    sensor.setData('tileX', tileX);
-    sensor.setData('tileY', tileY);
-    sensor.setData('visibleHazard', visibleHazard);
-
-    // Re-migrate and Re-insert into unit if it was part of a unit
-    if (blueprint) {
-      this.movingBoxGroup.add(sensor);
-    }
-    
-    // If this is a spinning unit hazard, re-inject it into the spinning unit members
-    if (blueprint?.isSpinning) {
-      const spinningUnit = this.spinningUnits.get(blueprint.unitId);
-      if (spinningUnit) {
-        spinningUnit.members.push({ 
-          sprite: sensor, 
-          radius: blueprint.radius || 0, 
-          initAngle: blueprint.initAngle || 0 
-        });
-        sensor.setData('isSpinningUnitMember', true);
-      }
-    }
-
-    this.physics.add.existing(sensor, false);
-    const body = sensor.body as Phaser.Physics.Arcade.Body;
-    body.setAllowGravity(false);
-    body.setImmovable(true);
-    body.setSize(TILE, TILE);
-
-    if (blueprint && !blueprint.isSpinning) {
-      const dir = this.movingBoxUnitDirection.get(blueprint.unitId);
-      if (dir) {
-        const vel = this.velocityForDirection(dir);
-        body.setVelocity(vel.x, vel.y);
-      }
-
-      sensor.setData('gridX', tileX);
-      sensor.setData('gridY', tileY);
-      sensor.setData('sourceGroup', this.hazardGroup);
-      sensor.setData('visualMirror', visibleHazard);
-      this.staticTilesByCell.set(`${tileX},${tileY}`, sensor);
-
-      const boxes = this.movingBoxUnits.get(blueprint.unitId);
-      if (boxes) {
-        boxes.push(sensor);
-      }
-    }
-
-    sensor.setAlpha(0);
-    sensor.refreshBody();
-
-    const entry = { sensor, visible: visibleHazard };
-    this.boomboxHazardsByCell.set(cellKey, entry);
-    return entry;
-  }
-
-  private restoreRespawnHazards() {
-    for (const cellKey of this.boomboxSpawnCells) {
-      if (this.boomboxHazardsByCell.has(cellKey)) continue;
-      const [sx, sy] = cellKey.split(',');
-      const tileX = Number.parseInt(sx, 10);
-      const tileY = Number.parseInt(sy, 10);
-      if (!Number.isFinite(tileX) || !Number.isFinite(tileY)) continue;
-      this.spawnBoomboxHazard(tileX, tileY);
-    }
-  }
-
-  private restoreAllFallingLand() {
-    this.fallingLandGroup.getChildren().forEach((child) => {
-      const land = child as Phaser.Physics.Arcade.Image;
-      if (this.fallingLandCrumbling.has(land) || !land.active) {
-        this.resetFallingLand(land);
-      }
-    });
-  }
-
-  private expandRuntimeFluids(tiles: Tile[]): Tile[] {
-    const byCell = new Map<string, Tile>();
-
-    for (const tile of tiles) {
-      byCell.set(`${tile.x},${tile.y}`, {
-        ...tile,
-        waterVariant: (tile.type === 'water' || tile.type === 'lava')
-          ? (tile.waterVariant === 'flow' ? 'flow' : 'still')
-          : undefined,
-      });
-    }
-
-    const fluidSources = Array.from(byCell.values()).filter(
-      (t) => (t.type === 'water' || t.type === 'lava') && t.waterVariant !== 'flow',
-    );
-
-    for (const src of fluidSources) {
-      const belowY = src.y + 1;
-      if (belowY >= WATER_RUNTIME_ROWS) continue;
-      if (byCell.has(`${src.x},${belowY}`)) continue;
-
-      for (let y = belowY; y < WATER_RUNTIME_ROWS; y++) {
-        const key = `${src.x},${y}`;
-        if (byCell.has(key)) break;
-        byCell.set(key, {
-          type: src.type,
-          x: src.x,
-          y,
-          waterVariant: 'flow',
-        });
-      }
-    }
-
-    return Array.from(byCell.values()).sort((a, b) => (a.y - b.y) || (a.x - b.x));
-  }
-
-  private onMovingBoxContact(
-    _playerObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
-    boxObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
-  ) {
-    if (this.isDead || this.finished) return;
-    const box = boxObj as Phaser.Physics.Arcade.Image;
-    const hazardType = box.getData('hazardType');
-
-    if (hazardType === 'boombox') {
-      this.onHazardOverlap(_playerObj, boxObj);
-    }
-  }
-
-  private onFinish() {
-    if (this.finished) return;
-    this.finished = true;
-
-    const elapsed = performance.now() - this.startTime;
-    this.player.setTint(0x50c860);
-    this.player.setVelocity(0, 0);
-    const body = this.player.body as Phaser.Physics.Arcade.Body;
-    body.setAccelerationX(0);
-    body.setMaxVelocityX(0);
-    body.setAllowGravity(false);
-
-    // Emit finish to party room
-    if (this.socket && this.partyCode) {
-      this.socket.emit('player:finish', { code: this.partyCode, time: elapsed });
-    }
-
-    const { width, height } = this.scale;
-    const overlay = this.add
-      .rectangle(0, 0, width, height, 0x000000, 0)
-      .setOrigin(0, 0)
-      .setScrollFactor(0)
-      .setDepth(10);
-
-    this.tweens.add({
-      targets: overlay,
-      fillAlpha: 0.7,
-      duration: 600,
-      ease: 'Power2',
-      onComplete: () => {
-        const onCompleteCb = this.registry.get('onComplete') as
-          | ((elapsed: number) => void)
-          | undefined;
-        if (onCompleteCb) onCompleteCb(elapsed);
-      },
-    });
-  }
-
-  private onPortalOverlap(
-    _player: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
-    portalObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
-  ) {
-    if (this.portalCooldown) return;
-
-    const portal = portalObj as Phaser.Physics.Arcade.Image;
-
-    const linkedId = portal.getData('linkedPortalId') as string;
-    if (!linkedId) return;
-
-    const positions = this.portalPositions.get(linkedId);
-    // Require at least two portals with this ID to form a pair
-    if (!positions || positions.length < 2) return;
-
-    // Find the OTHER portal position (not the one the player is currently on)
-    const myX = portal.getData('portalX') as number;
-    const myY = portal.getData('portalY') as number;
-    const dest = positions.find((p) => p.x !== myX || p.y !== myY);
-    if (!dest) return; // both portals are at the same position — no-op
-
-    this.portalCooldown = true;
-    this.player.setPosition(dest.x, dest.y - TILE / 2);
-    this.player.setVelocity(0, 0);
-
-    this.time.delayedCall(PORTAL_COOLDOWN_MS, () => {
-      this.portalCooldown = false;
-    });
-  }
-
-  private onFallingLandContact(
-    _player: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
-    landObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
-  ) {
-    const land = landObj as Phaser.Physics.Arcade.Image;
-    if (this.fallingLandCrumbling.has(land)) return;
-    this.fallingLandCrumbling.add(land);
-
-    const crumbleTimer = this.time.delayedCall(FALL_CRUMBLE_DELAY, () => {
-      const scaleTween = this.tweens.add({
-        targets: land,
-        alpha: 0,
-        scaleX: 0.5,
-        scaleY: 0.5,
-        duration: 300,
-        ease: 'Power2',
-        onComplete: () => {
-          land.setActive(false);
-          land.setVisible(false);
-          (land.body as Phaser.Physics.Arcade.StaticBody).enable = false;
-          const respawnTimer = this.time.delayedCall(3000, () => {
-            this.resetFallingLand(land);
-          });
-          land.setData('respawnTimer', respawnTimer);
-        },
-      });
-      land.setData('scaleTween', scaleTween);
-    });
-    land.setData('crumbleTimer', crumbleTimer);
-  }
-
-  private resetFallingLand(land: Phaser.Physics.Arcade.Image) {
-    // Clean up any pending lifecycle events for this specific tile
-    const crumbleTimer = land.getData('crumbleTimer') as Phaser.Time.TimerEvent | undefined;
-    if (crumbleTimer) crumbleTimer.remove();
-
-    const scaleTween = land.getData('scaleTween') as Phaser.Tweens.Tween | undefined;
-    if (scaleTween) scaleTween.stop();
-
-    const respawnTimer = land.getData('respawnTimer') as Phaser.Time.TimerEvent | undefined;
-    if (respawnTimer) respawnTimer.remove();
-
-    land.setData('crumbleTimer', null);
-    land.setData('scaleTween', null);
-    land.setData('respawnTimer', null);
-
-    // Restore visual and physical state
-    land.setActive(true);
-    land.setVisible(true);
-    land.setAlpha(1);
-    land.setDisplaySize(TILE, TILE);
-
-    const body = land.body as Phaser.Physics.Arcade.StaticBody;
-    body.enable = true;
-    body.reset(
-      land.getData('originalX') as number,
-      land.getData('originalY') as number,
-    );
-    // Explicitly refresh the static body to match the restored scale and position
-    land.refreshBody();
-
-    this.fallingLandCrumbling.delete(land);
-  }
-
-  private initializeMovingBoxUnits() {
-    this.movingBoxUnits.clear();
-    this.movingBoxUnitDirection.clear();
-    this.movingBoxUnitLastProgressCoord.clear();
-    this.movingBoxUnitStuckFrames.clear();
-    this.movingBoxUnitReverseCooldown.clear();
-
-    const visited = new Map<string, number>(); // cellKey -> unitId
-    let unitId = 0;
-
-    // First, find all moving_box tiles as seeds
-    const tileData: Tile[] = this.registry.get('tileData') ?? [];
-    const tileMap = new Map<string, Tile>();
-    tileData.forEach(t => tileMap.set(`${t.x},${t.y}`, t));
-
-    const movingBoxTiles = tileData.filter(t => t.type === 'moving_box');
-
-    for (const seed of movingBoxTiles) {
-      const seedKey = `${seed.x},${seed.y}`;
-      if (visited.has(seedKey)) continue;
-
-      unitId += 1;
-      const unitBoxes: Phaser.Physics.Arcade.Image[] = [];
-      const queue = [seedKey];
-      visited.set(seedKey, unitId);
-
-      const seedDirection = (seed.moveDirection ?? 'right') as MovingDirection;
-
-      while (queue.length > 0) {
-        const key = queue.shift()!;
-        const box = this.getStaticTileSprite(key);
-
-        if (box) {
-          unitBoxes.push(box);
-          box.setData('movingUnitId', unitId);
-
-          // Migrate to movingBoxGroup to enable unified dynamic movement
-          if (box.getData('sourceGroup')) {
-            const group = box.getData('sourceGroup') as Phaser.Physics.Arcade.Group;
-            group.remove(box);
-            this.movingBoxGroup.add(box);
-          }
-
-          // Ensure we have a dynamic body for movement and collision detection
-          if (box.body instanceof Phaser.Physics.Arcade.StaticBody) {
-            box.body.destroy();
-            (box as any).body = null;
-            this.physics.add.existing(box, false);
-          }
-
-          const body = box.body as Phaser.Physics.Arcade.Body;
-          if (body) {
-            body.allowGravity = false;
-            body.setImmovable(true);
-            // Ladders should not be solid blocks, otherwise player can't 'overlap' them to climb
-            if (box.getData('ladder')) {
-              body.checkCollision.none = true;
-            }
-          }
-        }
-
-        const [sx, sy] = key.split(',').map(Number);
-        const neighbors = [
-          { key: `${sx + 1},${sy}`, sideFacingNeighbor: 'right' as const, neighborSideFacingMe: 'left' as const },
-          { key: `${sx - 1},${sy}`, sideFacingNeighbor: 'left' as const, neighborSideFacingMe: 'right' as const },
-          { key: `${sx},${sy + 1}`, sideFacingNeighbor: 'down' as const, neighborSideFacingMe: 'up' as const },
-          { key: `${sx},${sy - 1}`, sideFacingNeighbor: 'up' as const, neighborSideFacingMe: 'down' as const },
-        ];
-
-        const currentTile = tileMap.get(key);
-
-        for (const n of neighbors) {
-          if (visited.has(n.key)) continue;
-
-          const neighborTile = tileMap.get(n.key);
-          if (!neighborTile) continue;
-
-          // Glue logic: Sticked if current tile has glue on neighbor side OR neighbor has glue on current tile side
-          const isGlued = (currentTile?.glue?.[n.sideFacingNeighbor]) || (neighborTile?.glue?.[n.neighborSideFacingMe]);
-
-          if (isGlued) {
-            visited.set(n.key, unitId);
-            queue.push(n.key);
-          }
-        }
-      }
-
-      this.movingBoxUnits.set(unitId, unitBoxes);
-      this.movingBoxUnitDirection.set(unitId, seedDirection);
-      const progressCoord = this.getUnitProgressCoord(unitBoxes, seedDirection);
-      this.movingBoxUnitLastProgressCoord.set(unitId, progressCoord);
-      this.movingBoxUnitStuckFrames.set(unitId, 0);
-      this.movingBoxUnitReverseCooldown.set(unitId, 0);
-      const velocity = this.velocityForDirection(seedDirection);
-
-      for (const box of unitBoxes) {
-        const body = box.body as Phaser.Physics.Arcade.Body;
-        if (body) body.setVelocity(velocity.x, velocity.y);
-
-        // Track relative blueprints for hazards/ladders so they respawn glued correctly
-        const gridX = box.getData('gridX');
-        const gridY = box.getData('gridY');
-
-        if (gridX !== undefined && gridY !== undefined) {
-          const ref = unitBoxes[0];
-          const isLethal = box.getData('hazardType') === 'boombox';
-          const isLadder = box.getData('ladder') === true;
-          if (isLethal || isLadder) {
-            this.gluedHazardBlueprints.set(`${gridX},${gridY}`, {
-              unitId,
-              relX: box.x - ref.x,
-              relY: box.y - ref.y,
-            });
-          }
-        }
-
-        // Add visual glue attachments
-        if (gridX === undefined || gridY === undefined) continue;
-
-        const tile = tileMap.get(`${gridX},${gridY}`);
-        if (tile && tile.glue) {
-          (['up', 'down', 'left', 'right'] as const).forEach(side => {
-            const isLadder = tile.type === 'ladder';
-            const offsets = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
-            const nx = gridX + offsets[side].x;
-            const ny = gridY + offsets[side].y;
-            const neighbor = tileMap.get(`${nx},${ny}`);
-
-            // Don't render glue if it's between two ladders
-            if (isLadder && neighbor?.type === 'ladder') return;
-
-            if (tile.glue?.[side]) {
-              this.createGlueAttachment(box, side);
-            } else {
-              // Also check if neighbor is glued to US
-              const opp = { up: 'down', down: 'up', left: 'right', right: 'left' } as const;
-              if (neighbor?.glue?.[opp[side]]) {
-                this.createGlueAttachment(box, side);
-              }
-            }
-          });
-        }
-      }
-    }
-  }
-
-  private createGlueAttachment(parent: Phaser.Physics.Arcade.Image, side: 'up' | 'down' | 'left' | 'right') {
-    const rotationMap = { up: 90, right: 180, down: 270, left: 0 };
-    const glue = this.add.image(parent.x, parent.y, 'glue')
-      .setDisplaySize(TILE, TILE)
-      .setOrigin(0.5, 0.5)
-      .setRotation(Phaser.Math.DegToRad(rotationMap[side]));
-
-    glue.setData('parent', parent);
-    glue.setData('side', side);
-    glue.setDepth(parent.depth + 0.1);
-    const attachments = parent.getData('glueAttachments') || [];
-    attachments.push(glue);
-    parent.setData('glueAttachments', attachments);
-  }
-
-  private getStaticTileSprite(key: string): Phaser.Physics.Arcade.Image | null {
-    return this.staticTilesByCell.get(key)
-      || this.movingBoxesByCell.get(key)
-      || null;
-  }
-
-  private initializeSpinningUnits() {
-    this.spinningUnits.clear();
-    const visited = new Set<string>();
-    let spinningUnitId = 0;
-
-    const tileData: Tile[] = this.registry.get('tileData') ?? [];
-    const tileMap = new Map<string, Tile>();
-    tileData.forEach(t => tileMap.set(`${t.x},${t.y}`, t));
-
-    const spinCenters = Array.from(this.staticTilesByCell.values())
-      .filter(s => s.getData('isSpinningCenter') === true);
-
-    for (const seed of spinCenters) {
-      const gx = seed.getData('gridX') as number;
-      const gy = seed.getData('gridY') as number;
-      const seedKey = `${gx},${gy}`;
-      if (visited.has(seedKey)) continue;
-
-      spinningUnitId++;
-      const members: Array<{ sprite: Phaser.Physics.Arcade.Image; radius: number; initAngle: number }> = [];
-      const queue = [seedKey];
-      visited.add(seedKey);
-
-      while (queue.length > 0) {
-        const key = queue.shift()!;
-        const box = this.getStaticTileSprite(key);
-        if (!box) continue;
-
-        const bx = box.getData('gridX') as number;
-        const by = box.getData('gridY') as number;
-
-        // Calculate polar coords relative to the seed center
-        const dx = (bx - gx) * TILE;
-        const dy = (by - gy) * TILE;
-        const radius = Math.sqrt(dx * dx + dy * dy);
-        const initAngle = Math.atan2(dy, dx);
-
-        // Migrate to dynamic group for movement
-        if (box.getData('sourceGroup')) {
-          const group = box.getData('sourceGroup') as Phaser.Physics.Arcade.Group;
-          group.remove(box);
-          this.movingBoxGroup.add(box);
-        }
-
-        if (box.body instanceof Phaser.Physics.Arcade.StaticBody) {
-          box.body.destroy();
-          (box as any).body = null;
-          this.physics.add.existing(box, false);
-        } else if (!box.body) {
-          this.physics.add.existing(box, false);
-        }
-
-        const body = box.body as Phaser.Physics.Arcade.Body;
-        if (body) {
-          body.allowGravity = false;
-          body.setImmovable(true);
-        }
-        if (box.getData('ladder')) body.checkCollision.none = true;
-
-        box.setData('isSpinningUnitMember', true);
-        members.push({ sprite: box, radius, initAngle });
-
-        // BFS Neighbors via glue
-        const tile = tileMap.get(key);
-        if (tile && tile.glue) {
-          const sides: Array<{ s: 'up' | 'down' | 'left' | 'right', dx: number, dy: number }> = [
-            { s: 'up', dx: 0, dy: -1 },
-            { s: 'down', dx: 0, dy: 1 },
-            { s: 'left', dx: -1, dy: 0 },
-            { s: 'right', dx: 1, dy: 0 }
-          ];
-          for (const { s, dx, dy } of sides) {
-            const neighboringKey = `${bx + dx},${by + dy}`;
-            const glue = tile.glue;
-            const neighborGlue = tileMap.get(neighboringKey)?.glue;
-            const opposite: Record<string, 'up' | 'down' | 'left' | 'right'> = { up: 'down', down: 'up', left: 'right', right: 'left' };
-            const isGlued = (glue && glue[s]) || (neighborGlue && neighborGlue[opposite[s]]);
-            if (isGlued && !visited.has(neighboringKey)) {
-              const neighborSprite = this.getStaticTileSprite(neighboringKey);
-              if (neighborSprite) {
-                visited.add(neighboringKey);
-                queue.push(neighboringKey);
-              }
-            }
-          }
-        }
-
-        // Add visual attachments logic inherited from linear units
-        if (tile && tile.glue) {
-          (['up', 'down', 'left', 'right'] as const).forEach(side => {
-            const isLadder = tile.type === 'ladder';
-            const offsets = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
-            const neighbor = tileMap.get(`${bx + offsets[side].x},${by + offsets[side].y}`);
-            if (isLadder && neighbor?.type === 'ladder') return;
-            if (tile.type === 'spinning_block') return;
-            const opposite: Record<string, 'up' | 'down' | 'left' | 'right'> = { up: 'down', down: 'up', left: 'right', right: 'left' };
-            if (tile.glue?.[side] || neighbor?.glue?.[opposite[side]]) {
-              this.createGlueAttachment(box, side);
-            }
-          });
-        }
-        
-        // Store blueprint for hazards
-        if (box.getData('hazardType') === 'boombox') {
-          this.gluedHazardBlueprints.set(`${bx},${gy}`, {
-            unitId: spinningUnitId,
-            relX: 0,
-            relY: 0,
-            isSpinning: true,
-            radius,
-            initAngle
-          });
-        }
-      }
-
-      this.spinningUnits.set(spinningUnitId, { center: seed, members, angle: 0 });
-    }
-  }
-
-  private updateSpinningUnits() {
-    const speed = 0.01; // default spin speed (radians per frame)
-
-    this.spinningUnits.forEach((unit) => {
-      unit.angle += speed;
-      const cx = unit.center.x;
-      const cy = unit.center.y;
-
-      for (const member of unit.members) {
-        const box = member.sprite;
-        const currentAngle = unit.angle + member.initAngle;
-
-        const targetX = cx + member.radius * Math.cos(currentAngle);
-        const targetY = cy + member.radius * Math.sin(currentAngle);
-
-        // Update physics position
-        box.x = targetX;
-        box.y = targetY;
-        box.rotation = unit.angle;
-
-        // Sync hazard visual mirror
-        const mirror = box.getData('visualMirror') as Phaser.GameObjects.Image;
-        if (mirror) {
-          mirror.x = box.x;
-          mirror.y = box.y;
-          mirror.rotation = box.rotation;
-        }
-
-        // Rotate and position all glue overlays attached to this box
-        this.children.each((child) => {
-          if (child.getData('parent') === box) {
-            const g = child as Phaser.GameObjects.Image;
-            g.x = box.x;
-            g.y = box.y;
-            g.rotation = box.rotation + Phaser.Math.DegToRad(({ up: 90, right: 180, down: 270, left: 0 } as any)[g.getData('side')]);
-          }
-        });
-      }
-    });
-  }
-
-  private updateMovingBoxUnits() {
-    const worldBounds = this.physics.world.bounds;
-
-    for (const [unitId, boxes] of this.movingBoxUnits) {
-      if (boxes.length === 0) continue;
-
-      let direction = this.movingBoxUnitDirection.get(unitId) ?? 'right';
-      let shouldReverse = false;
-      let cooldown = this.movingBoxUnitReverseCooldown.get(unitId) ?? 0;
-      if (cooldown > 0) {
-        cooldown -= 1;
-      }
-
-      for (const box of boxes) {
-        if (!box.active) continue;
-        const body = box.body as Phaser.Physics.Arcade.Body;
-        if (!body || !body.enable) continue;
-
-        const hitWall = direction === 'left'
-          ? body.blocked.left
-          : direction === 'right'
-            ? body.blocked.right
-            : direction === 'up'
-              ? body.blocked.up
-              : body.blocked.down;
-        const hitBounds = direction === 'left'
-          ? (box.x - TILE / 2) <= (worldBounds.x + 1)
-          : direction === 'right'
-            ? (box.x + TILE / 2) >= (worldBounds.right - 1)
-            : direction === 'up'
-              ? (box.y - TILE / 2) <= (worldBounds.y + 1)
-              : (box.y + TILE / 2) >= (worldBounds.bottom - 1);
-        if (hitWall || hitBounds) {
-          shouldReverse = true;
-          break;
-        }
-
-        // Sync glue attachments
-        const attachments = box.getData('glueAttachments') as Phaser.GameObjects.Image[];
-        if (attachments) {
-          attachments.forEach(g => {
-            g.x = box.x;
-            g.y = box.y;
-          });
-        }
-
-        // Sync visual mirror (for hazards/boomboxes)
-        const mirror = box.getData('visualMirror') as Phaser.GameObjects.Image;
-        if (mirror) {
-          mirror.x = box.x - TILE / 2;
-          mirror.y = box.y - TILE / 2;
-        }
-      }
-
-      const progressCoord = this.getUnitProgressCoord(boxes, direction);
-      const previousCoord = this.movingBoxUnitLastProgressCoord.get(unitId) ?? progressCoord;
-      const movedDistance = Math.abs(progressCoord - previousCoord);
-
-      let stuckFrames = this.movingBoxUnitStuckFrames.get(unitId) ?? 0;
-      if (movedDistance < MOVING_BOX_PROGRESS_EPSILON) {
-        stuckFrames += 1;
-      } else {
-        stuckFrames = 0;
-      }
-
-      if (stuckFrames >= MOVING_BOX_STUCK_FRAMES) {
-        shouldReverse = true;
-        stuckFrames = 0;
-      }
-
-      if (shouldReverse && cooldown <= 0) {
-        direction = this.oppositeDirection(direction);
-        cooldown = MOVING_BOX_REVERSE_COOLDOWN_FRAMES;
-
-        // Nudge unit after reversal to break persistent contact with blockers.
-        const nudge = this.velocityForDirection(direction);
-        for (const box of boxes) {
-          box.x += Math.sign(nudge.x) * MOVING_BOX_UNSTICK_NUDGE;
-          box.y += Math.sign(nudge.y) * MOVING_BOX_UNSTICK_NUDGE;
-        }
-      }
-
-      this.movingBoxUnitDirection.set(unitId, direction);
-      this.movingBoxUnitLastProgressCoord.set(unitId, progressCoord);
-      this.movingBoxUnitStuckFrames.set(unitId, stuckFrames);
-      this.movingBoxUnitReverseCooldown.set(unitId, cooldown);
-      // Clean up inactive/destroyed boxes periodically to prevent memory leaks in the unit array
-      if (this.time.now % 100 < 20) {
-        this.movingBoxUnits.set(unitId, boxes.filter(b => b.active));
-      }
-
-      const velocity = this.velocityForDirection(direction);
-
-      for (const box of boxes) {
-        if (!box.active) continue;
-        const body = box.body as Phaser.Physics.Arcade.Body;
-        if (!body || !body.enable) continue;
-        body.setVelocity(velocity.x, velocity.y);
-      }
-    }
-  }
-
-  private velocityForDirection(direction: MovingDirection): { x: number; y: number } {
-    if (direction === 'left') return { x: -MOVING_BOX_SPEED, y: 0 };
-    if (direction === 'right') return { x: MOVING_BOX_SPEED, y: 0 };
-    if (direction === 'up') return { x: 0, y: -MOVING_BOX_SPEED };
-    return { x: 0, y: MOVING_BOX_SPEED };
-  }
-
-  private oppositeDirection(direction: MovingDirection): MovingDirection {
-    if (direction === 'left') return 'right';
-    if (direction === 'right') return 'left';
-    if (direction === 'up') return 'down';
-    return 'up';
-  }
-
-  private getUnitProgressCoord(
-    boxes: Phaser.Physics.Arcade.Image[],
-    direction: MovingDirection,
-  ): number {
-    const sum = boxes.reduce(
-      (acc, box) => acc + (direction === 'left' || direction === 'right' ? box.x : box.y),
-      0,
-    );
-    return sum / boxes.length;
-  }
-
-  // ── Multiplayer socket listeners ─────────────────────────────────────────
-
-  private registerSocketListeners() {
-    if (!this.socket) return;
-
-    this.socket.on(
-      'player:update',
-      (payload: { id: string; x: number; y: number; state: string; characterKey?: string; displayName?: string }) => {
-        this.updateGhost(payload.id, payload.x, payload.y, payload.state, payload.characterKey, payload.displayName);
-      },
-    );
-
-    this.socket.on('player:left', (payload: { id: string }) => {
-      this.removeGhost(payload.id);
-    });
-  }
-
-  private updateGhost(
-    id: string,
-    x: number,
-    y: number,
-    state: string,
-    characterKey?: string,
-    displayName?: string,
-  ) {
-    // Tint reflects state while preserving full sprite visibility.
-    const isDead = state === 'dead';
-    const isJumping = state === 'jumping';
-    const alpha = 1;
-    const tint = isDead ? 0x888888 : isJumping ? 0xd4c8f0 : 0xffffff;
-
-    let ghost = this.ghostSprites.get(id);
-    if (!ghost) {
-      const candidateTexture = characterKey ? `character_${characterKey}_still` : '';
-      const textureKey = this.textures.exists(candidateTexture)
-        ? candidateTexture
-        : this.textures.exists('character_sora')
-          ? 'character_sora'
-          : this.textures.exists('character')
-            ? 'character'
-            : 'ghost';
-
-      // Create ghost sprite without a physics body so it doesn't collide with local player.
-      ghost = this.add.sprite(x, y + getCharacterRenderYOffset(characterKey), textureKey);
-      ghost.setOrigin(0.5, 1.0);
-      ghost.setDisplaySize(PLAYER_SPRITE_SIZE, PLAYER_SPRITE_SIZE);
-      ghost.setDepth(CHARACTER_SPRITE_DEPTH);
-      this.ghostSprites.set(id, ghost);
-
-      const nameplate = this.add
-        .text(x, y - PLAYER_SPRITE_SIZE - 4, displayName?.trim() || 'Player', {
-          fontFamily: 'Tahoma, Arial',
-          fontSize: '10px',
-          color: '#f3f7ff',
-          backgroundColor: '#22304a',
-          padding: { left: 4, right: 4, top: 1, bottom: 1 },
-        })
-        .setOrigin(0.5, 1)
-        .setDepth(CHARACTER_NAMEPLATE_DEPTH);
-      this.ghostNameplates.set(id, nameplate);
-    }
-
-    ghost.setPosition(x, y + getCharacterRenderYOffset(characterKey));
-    if (state === 'running') {
-      ghost.setFlipX(true);
-    }
-    ghost.setTint(tint);
-    ghost.setAlpha(alpha);
-
-    const nameplate = this.ghostNameplates.get(id);
-    if (nameplate) {
-      if (displayName && displayName.trim().length > 0 && nameplate.text !== displayName) {
-        nameplate.setText(displayName);
-      }
-      nameplate.setPosition(x, y - PLAYER_SPRITE_SIZE - 4);
-    }
-  }
-
-  private removeGhost(id: string) {
-    const ghost = this.ghostSprites.get(id);
-    if (ghost) {
-      ghost.destroy();
-      this.ghostSprites.delete(id);
-    }
-    const nameplate = this.ghostNameplates.get(id);
-    if (nameplate) {
-      nameplate.destroy();
-      this.ghostNameplates.delete(id);
-    }
-  }
-
-  private setColliderDebugVisible(visible: boolean) {
-    this.colliderDebugVisible = visible;
-    const world = this.physics.world as Phaser.Physics.Arcade.World & {
-      debugGraphic?: Phaser.GameObjects.Graphics;
-    };
-
-    world.drawDebug = visible;
-    if (this.satDebugGfx) this.satDebugGfx.setVisible(visible);
-
-    if (world.debugGraphic) {
-      world.debugGraphic.visible = visible;
-      if (visible) {
-        world.debugGraphic.clear();
-      }
-    }
-  }
-
-  private toggleColliderDebug() {
-    this.setColliderDebugVisible(!this.colliderDebugVisible);
+    MultiplayerSystem.emitPlayerPosition(this);
+    PlayerController.updatePlayerInput(this);
   }
 
   shutdown() {
-    // Clean up all ghost sprites and labels when scene is destroyed
-    this.ghostSprites.forEach((g) => g.destroy());
-    this.ghostSprites.clear();
-    this.ghostNameplates.forEach((t) => t.destroy());
-    this.ghostNameplates.clear();
-    if (this.playerNameplate) {
-      this.playerNameplate.destroy();
-      this.playerNameplate = null;
-    }
-    if (this.repeatingBackdropTextureKey && this.textures.exists(this.repeatingBackdropTextureKey)) {
-      this.textures.remove(this.repeatingBackdropTextureKey);
-      this.repeatingBackdropTextureKey = null;
-    }
-    // Remove socket listeners added by this scene
-    if (this.socket) {
-      this.socket.off('player:update');
-      this.socket.off('player:left');
-    }
+    MultiplayerSystem.cleanupGhosts(this);
+    MultiplayerSystem.unregisterSocketListeners(this);
+    BackdropRenderer.cleanupBackdrop(this, this.backdropState);
   }
 
-  updateColliderDebugToggle() {
-    if (Phaser.Input.Keyboard.JustDown(this.debugToggleKey)) {
-      this.toggleColliderDebug();
-    }
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Delegate methods (called by system modules that need cross-system calls)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  spawnBoomboxHazard(tileX: number, tileY: number) {
+    return HazardSystem.spawnBoomboxHazard(this, tileX, tileY);
   }
 
-  // ── Custom SAT Physics Resolver (Rotating Hitboxes) ──────────────────────
-
-  private handleSpinningCollision() {
-    if (this.isDead || this.finished) return;
-
-    if (this.satDebugGfx && this.colliderDebugVisible) {
-      this.satDebugGfx.clear();
-      this.satDebugGfx.lineStyle(2, 0x00ff00, 0.8);
-    }
-
-    const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
-    const playerVerts = this.getAABBVertices(playerBody);
-
-    this.spinningUnits.forEach((unit) => {
-      for (const member of unit.members) {
-        const box = member.sprite;
-        if (!box.active) continue;
-
-        // SKIP solid resolution for ladders (they are sensors)
-        if (box.getData('ladder')) continue;
-
-        const boxVerts = this.getRotatedVertices(box);
-
-        // Draw debug outline for this SAT box
-        if (this.satDebugGfx && this.colliderDebugVisible) {
-          this.satDebugGfx.strokePoints(boxVerts as unknown as Phaser.Math.Vector2[], true);
-        }
-
-        const mtv = this.checkSATCollision(playerVerts, boxVerts);
-
-        if (mtv) {
-          // If this member is a hazard, trigger death instead of resolving position
-          if (box.getData('hazardType') === 'boombox') {
-            this.onHazardOverlap(this.player as any, box as any);
-            return;
-          }
-
-          // Resolve position
-          this.player.x += mtv.x;
-          this.player.y += mtv.y;
-
-          // Resolve velocity and blocked state
-          if (mtv.y < 0 && Math.abs(mtv.y) > Math.abs(mtv.x)) {
-             playerBody.blocked.down = true;
-             // Add tangential friction (carry the player with the rotation)
-             const speed = 0.01; // match default speed
-             const currentAngle = unit.angle + member.initAngle;
-             // Tangential Velocity V = omega * r
-             const vx = -speed * member.radius * Math.sin(currentAngle);
-             // const vy = speed * member.radius * Math.cos(currentAngle);
-             this.player.x += vx; 
-          }
-          if (mtv.y > 0 && Math.abs(mtv.y) > Math.abs(mtv.x)) playerBody.blocked.up = true;
-          if (mtv.x < 0 && Math.abs(mtv.x) > Math.abs(mtv.y)) playerBody.blocked.right = true;
-          if (mtv.x > 0 && Math.abs(mtv.x) > Math.abs(mtv.y)) playerBody.blocked.left = true;
-        }
-      }
-    });
+  restoreRespawnHazards() {
+    HazardSystem.restoreRespawnHazards(this);
   }
 
-  private getRotatedVertices(sprite: Phaser.GameObjects.Components.Transform & Phaser.GameObjects.Components.Size): { x: number; y: number }[] {
-    const { x, y, rotation } = sprite as any;
-    const wH = TILE / 2; // Use TILE size for collider regardless of sprite display size
-    const corners = [
-      { x: -wH, y: -wH },
-      { x: wH, y: -wH },
-      { x: wH, y: wH },
-      { x: -wH, y: wH }
-    ];
-
-    const cos = Math.cos(rotation);
-    const sin = Math.sin(rotation);
-
-    return corners.map(c => ({
-      x: x + (c.x * cos - c.y * sin),
-      y: y + (c.x * sin + c.y * cos)
-    }));
+  restoreAllFallingLand() {
+    FallingLandSystem.restoreAllFallingLand(this);
   }
 
-  private getAABBVertices(body: Phaser.Physics.Arcade.Body): { x: number; y: number }[] {
-    return [
-      { x: body.x, y: body.y },
-      { x: body.right, y: body.y },
-      { x: body.right, y: body.bottom },
-      { x: body.x, y: body.bottom }
-    ];
-  }
-
-  private checkSATCollision(vertsA: { x: number; y: number }[], vertsB: { x: number; y: number }[]): { x: number; y: number } | null {
-    const axes = [
-      ...this.getNormals(vertsA),
-      ...this.getNormals(vertsB)
-    ];
-
-    let minOverlap = Infinity;
-    let mtvAxis = { x: 0, y: 0 };
-
-    for (const axis of axes) {
-      const projA = this.project(vertsA, axis);
-      const projB = this.project(vertsB, axis);
-
-      if (projA.max < projB.min || projB.max < projA.min) {
-        return null; // Separation found
-      }
-
-      const overlap = Math.min(projA.max, projB.max) - Math.max(projA.min, projB.min);
-      if (overlap < minOverlap) {
-        minOverlap = overlap;
-        mtvAxis = axis;
-      }
-    }
-
-    // Directional orientation: ensure MTV points from B to A (shove A out)
-    const centerA = { x: (vertsA[0].x + vertsA[2].x) / 2, y: (vertsA[0].y + vertsA[2].y) / 2 };
-    const centerB = { x: (vertsB[0].x + vertsB[2].x) / 2, y: (vertsB[0].y + vertsB[2].y) / 2 };
-    const dir = { x: centerA.x - centerB.x, y: centerA.y - centerB.y };
-    if (dir.x * mtvAxis.x + dir.y * mtvAxis.y < 0) {
-      mtvAxis.x *= -1;
-      mtvAxis.y *= -1;
-    }
-
-    return { x: mtvAxis.x * minOverlap, y: mtvAxis.y * minOverlap };
-  }
-
-  private getNormals(verts: { x: number; y: number }[]): { x: number; y: number }[] {
-    const normals = [];
-    for (let i = 0; i < verts.length; i++) {
-      const p1 = verts[i];
-      const p2 = verts[(i + 1) % verts.length];
-      const edge = { x: p2.x - p1.x, y: p2.y - p1.y };
-      // Normal is perpendicular to edge
-      const len = Math.sqrt(edge.x * edge.x + edge.y * edge.y);
-      normals.push({ x: -edge.y / len, y: edge.x / len });
-    }
-    return normals;
-  }
-
-  private project(verts: { x: number; y: number }[], axis: { x: number; y: number }) {
-    let min = Infinity;
-    let max = -Infinity;
-    for (const v of verts) {
-      const p = v.x * axis.x + v.y * axis.y;
-      if (p < min) min = p;
-      if (p > max) max = p;
-    }
-    return { min, max };
+  onHazardOverlap(
+    playerObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
+    hazardObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
+  ) {
+    HazardSystem.onHazardOverlap(this, playerObj, hazardObj);
   }
 }

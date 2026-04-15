@@ -411,16 +411,18 @@ async function main() {
     // Server stamps the userId from the verified JWT; client cannot spoof it.
     socket.on(
       'player:move',
-      (payload: { code: string; x: number; y: number; state: string }) => {
+      (payload: { code: string; x: number; y: number; state: string; facingLeft?: boolean }) => {
         if (!payload.code) return;
         socket.to(payload.code).emit('player:update', {
           id: socket.id,
           userId,
           username,
+          displayName: username,
           x: payload.x,
           y: payload.y,
           state: payload.state,
           characterKey,
+          facingLeft: payload.facingLeft ?? false,
         });
       }
     );
